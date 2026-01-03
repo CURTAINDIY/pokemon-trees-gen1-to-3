@@ -7,7 +7,8 @@ import { decodePk3 } from "../lib/gen3/pk3";
 import { speciesName } from "../lib/dex/dex";
 import { MOVES_GEN3 } from "../lib/dex/moves";
 import { ITEMS_GEN3 } from "../lib/dex/items";
-import { deleteAllProfessorMons, deleteSelectedMons, importSaveToProfessorPc, repairProfessorMonMetadata, repairProfessorMonChecksums, repairBadEggIssues } from "../stores/professorsPcStore";
+import { deleteAllProfessorMons, deleteSelectedMons, importSaveToProfessorPc, repairProfessorMonMetadata, repairBadEggIssues } from "../stores/professorsPcStore";
+import { sha256Hex } from "../lib/binary/fingerprint";
 
 function displayNameForRow(row: ProfessorMonRow): { 
   displayName: string; 
@@ -67,16 +68,7 @@ function formatIVs(row: ProfessorMonRow): string {
   if (ivs.some(v => v === undefined)) return "—";
   return ivs.join("/");
 }
-*/
 
-function formatPokerus(row: ProfessorMonRow): string {
-  if (!row.checksumOk) return "—";
-  if (row.hasPokerus) return "🦠 Active";
-  if (row.hadPokerus) return "✓ Cured";
-  return "—";
-}
-
-/* Unused helper function - kept for future use
 function calculateDisplayLevel(row: ProfessorMonRow): number {
   // Calculate actual level from experience for display
   if (!row.checksumOk || !row.experience || !row.speciesId) {
@@ -91,6 +83,13 @@ function calculateDisplayLevel(row: ProfessorMonRow): number {
 }
 */
 
+function formatPokerus(row: ProfessorMonRow): string {
+  if (!row.checksumOk) return "—";
+  if (row.hasPokerus) return "🦠 Active";
+  if (row.hadPokerus) return "✓ Cured";
+  return "—";
+}
+
 interface ProfessorsPcProps {
   selectedMonIds: string[];
   onSelectMonIds: (ids: string[]) => void;
@@ -100,7 +99,10 @@ export default function ProfessorsPc({ selectedMonIds, onSelectMonIds }: Profess
   const [mons, setMons] = useState<ProfessorMonRow[]>([]);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<string>("");
+  const [showChecksumFailedOnly, setShowChecksumFailedOnly] = useState(false);
+  const [showShinyOnly, setShowShinyOnly] = useState(false);
   const [showPokerusOnly, setShowPokerusOnly] = useState(false);
+  const [selectAllToggle, setSelectAllToggle] = useState(false);
 
   async function refresh() {
     const rows = await idb.listMons();
@@ -116,11 +118,6 @@ export default function ProfessorsPc({ selectedMonIds, onSelectMonIds }: Profess
   const view = useMemo(() => {
     let filtered = mons;
     
-    // Apply Pokerus filter if enabled
-    if (showPokerusOnly) {
-      filtered = filtered.filter(m => m.hasPokerus || m.hadPokerus);
-    }
-    
     // Sort by National Dex number (speciesId), then by creation time
     filtered = filtered.sort((a, b) => {
       const aSpecies = a.speciesId || 9999;
@@ -133,11 +130,31 @@ export default function ProfessorsPc({ selectedMonIds, onSelectMonIds }: Profess
       return b.createdAt - a.createdAt; // If same species, newest first
     });
     
-    return filtered.map((m) => {
+    // Add display info first so we can filter by warn flag
+    const withDisplay = filtered.map((m) => {
       const disp = displayNameForRow(m);
       return { ...m, disp };
     });
-  }, [mons, showPokerusOnly]);
+    
+    let result = withDisplay;
+    
+    // Apply checksum failed filter if enabled (filter by warn flag which includes checksum + species validation)
+    if (showChecksumFailedOnly) {
+      result = result.filter(m => m.disp.warn);
+    }
+    
+    // Apply Shiny filter if enabled
+    if (showShinyOnly) {
+      result = result.filter(m => m.isShiny);
+    }
+    
+    // Apply Pokerus filter if enabled
+    if (showPokerusOnly) {
+      result = result.filter(m => m.hasPokerus || m.hadPokerus);
+    }
+    
+    return result;
+  }, [mons, showChecksumFailedOnly, showShinyOnly, showPokerusOnly]);
 
   async function onImportSave(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
@@ -198,43 +215,32 @@ export default function ProfessorsPc({ selectedMonIds, onSelectMonIds }: Profess
     setBusy(true);
     setStatus("");
     try {
+      console.log("\n========================================");
+      console.log("REPAIRING PROFESSOR'S PC METADATA");
+      console.log("========================================");
+      console.log(`Processing ${mons.length} Pokémon...`);
+      
       await repairProfessorMonMetadata();
-      setStatus("Repaired cached metadata from raw pk3 data.");
+      
+      console.log("✅ Metadata repair complete");
+      console.log("========================================\n");
+      
+      setStatus(`✅ Repaired cached metadata for ${mons.length} Pokémon (species, moves, stats, fingerprints).`);
       await refresh();
     } catch (err: any) {
       setStatus(`Repair failed: ${err?.message ?? String(err)}`);
+      console.error("Repair metadata error:", err);
     } finally {
       setBusy(false);
     }
   }
 
-  async function onRepairChecksums() {
+  async function onFixChecksumAndBadEgg() {
     if (selectedMonIds.length === 0) {
-      setStatus("No Pokémon selected. Select Pokemon with bad checksums (⚠️) to repair.");
+      setStatus("No Pokémon selected. Select Pokemon to fix checksums and Bad Egg issues.");
       return;
     }
-    if (!confirm(`Attempt to repair checksums for ${selectedMonIds.length} selected Pokémon?\n\nThis will recalculate checksums from the encrypted data.`)) return;
-    
-    setBusy(true);
-    setStatus("");
-    try {
-      const result = await repairProfessorMonChecksums(selectedMonIds);
-      setStatus(`✅ Checksum repair: ${result.repaired} repaired, ${result.failed} failed.`);
-      onSelectMonIds([]);
-      await refresh();
-    } catch (err: any) {
-      setStatus(`Repair failed: ${err?.message ?? String(err)}`);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function onFixBadEgg() {
-    if (selectedMonIds.length === 0) {
-      setStatus("No Pokémon selected. Select Pokemon to fix Bad Egg issues.");
-      return;
-    }
-    if (!confirm(`Fix Bad Egg issues for ${selectedMonIds.length} selected Pokémon?\n\nThis will repair:\n- Invalid language codes\n- Met Level mismatches\n- Egg bit flags\n- Checksums`)) return;
+    if (!confirm(`Fix checksums and Bad Egg issues for ${selectedMonIds.length} selected Pokémon?\n\nThis will repair:\n- Checksums\n- Invalid language codes\n- Met Level mismatches\n- Egg bit flags`)) return;
     
     setBusy(true);
     setStatus("");
@@ -245,6 +251,103 @@ export default function ProfessorsPc({ selectedMonIds, onSelectMonIds }: Profess
       await refresh();
     } catch (err: any) {
       setStatus(`Fix failed: ${err?.message ?? String(err)}`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function onToggleSelectAll(checked: boolean) {
+    setSelectAllToggle(checked);
+    if (checked) {
+      // Select all visible rows
+      onSelectMonIds(view.map(m => m.id));
+    } else {
+      // Deselect all
+      onSelectMonIds([]);
+    }
+  }
+
+  async function onRemoveDuplicates() {
+    if (!confirm(`Scan for and remove exact duplicate Pokémon?\n\nThis will keep the first occurrence and delete duplicates based on fingerprint (PID, IVs, species, moves, OT).\n\nPokémon with different PIDs or IVs are NOT considered duplicates.`)) return;
+    
+    setBusy(true);
+    setStatus("");
+    try {
+      console.log("\n========================================");
+      console.log("SCANNING FOR DUPLICATE POKÉMON");
+      console.log("========================================");
+      console.log(`Total Pokémon: ${mons.length}`);
+      
+      // Build fingerprint map
+      const fingerprintMap = new Map<string, string[]>();
+      let recalculated = 0;
+      
+      for (const mon of mons) {
+        let fp = mon.fingerprint;
+        
+        // If missing fingerprint, recalculate it
+        if (!fp) {
+          try {
+            fp = await sha256Hex(mon.raw80);
+            recalculated++;
+          } catch (err) {
+            console.warn(`Failed to compute fingerprint for ${mon.id}:`, err);
+            continue;
+          }
+        }
+        
+        if (!fp) {
+          continue;
+        }
+        
+        if (!fingerprintMap.has(fp)) {
+          fingerprintMap.set(fp, []);
+        }
+        fingerprintMap.get(fp)!.push(mon.id);
+      }
+      
+      console.log(`Unique fingerprints: ${fingerprintMap.size}`);
+      if (recalculated > 0) {
+        console.log(`Recalculated ${recalculated} missing fingerprints`);
+      }
+      
+      // Find duplicates (keep first, delete rest)
+      const toDelete: string[] = [];
+      let duplicateGroups = 0;
+      for (const [_fp, ids] of fingerprintMap.entries()) {
+        if (ids.length > 1) {
+          duplicateGroups++;
+          // Keep first, delete rest
+          toDelete.push(...ids.slice(1));
+          
+          // Log first pokemon in group for context
+          const firstMon = mons.find(m => m.id === ids[0]);
+          const dupCount = ids.length - 1;
+          console.log(`Duplicate group #${duplicateGroups}: ${firstMon?.nickname || firstMon?.speciesId} - ${dupCount} duplicate(s)`);
+          console.log(`  Keeping: ${ids[0]}`);
+          console.log(`  Deleting: ${ids.slice(1).join(', ')}`);
+        }
+      }
+      
+      if (toDelete.length === 0) {
+        console.log("✅ No exact duplicates found.");
+        console.log("\nNote: Pokémon that look similar but have different PIDs, IVs, or came from different saves are NOT considered duplicates.");
+        console.log("This is intentional to protect unique Pokémon (like shinies).");
+        setStatus("✅ No exact duplicates found. (See console for details)");
+        setBusy(false);
+        return;
+      }
+      
+      console.log(`\nDeleting ${toDelete.length} duplicates from ${duplicateGroups} groups`);
+      console.log("========================================\n");
+      
+      await deleteSelectedMons(toDelete);
+      setStatus(`✅ Removed ${toDelete.length} exact duplicate(s) from ${duplicateGroups} group(s).`);
+      onSelectMonIds([]);
+      await refresh();
+    } catch (err: any) {
+      setStatus(`Remove duplicates failed: ${err?.message ?? String(err)}`);
+      console.error("Remove duplicates error:", err);
     } finally {
       setBusy(false);
     }
@@ -261,12 +364,42 @@ export default function ProfessorsPc({ selectedMonIds, onSelectMonIds }: Profess
         <button disabled={busy} onClick={onRepair}>
           🔧 Repair Metadata
         </button>
-        <button disabled={busy || selectedMonIds.length === 0} onClick={onRepairChecksums} style={{ cursor: selectedMonIds.length === 0 ? 'not-allowed' : 'pointer' }}>
-          🔧 Fix Checksums ({selectedMonIds.length})
+        <button disabled={busy || selectedMonIds.length === 0} onClick={onFixChecksumAndBadEgg} style={{ cursor: selectedMonIds.length === 0 ? 'not-allowed' : 'pointer', backgroundColor: '#ff6b6b', color: 'white', fontWeight: 'bold' }}>
+          🔧🥚 Fix Checksums & Bad Egg ({selectedMonIds.length})
         </button>
-        <button disabled={busy || selectedMonIds.length === 0} onClick={onFixBadEgg} style={{ cursor: selectedMonIds.length === 0 ? 'not-allowed' : 'pointer', backgroundColor: '#ff6b6b', color: 'white', fontWeight: 'bold' }}>
-          🥚 Fix Bad Egg ({selectedMonIds.length})
+        <button disabled={busy} onClick={onRemoveDuplicates}>
+          🗑️ Remove Duplicates
         </button>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <input 
+            type="checkbox" 
+            checked={selectAllToggle} 
+            onChange={(e) => onToggleSelectAll(e.target.checked)}
+            disabled={busy}
+          />
+          <span>☑️ Select All</span>
+        </label>
+      </div>
+
+      <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 12 }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <input 
+            type="checkbox" 
+            checked={showChecksumFailedOnly} 
+            onChange={(e) => setShowChecksumFailedOnly(e.target.checked)}
+            disabled={busy}
+          />
+          <span>⚠️ Checksum Failed Only</span>
+        </label>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <input 
+            type="checkbox" 
+            checked={showShinyOnly} 
+            onChange={(e) => setShowShinyOnly(e.target.checked)}
+            disabled={busy}
+          />
+          <span>✨ Shiny Only</span>
+        </label>
         <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <input 
             type="checkbox" 
