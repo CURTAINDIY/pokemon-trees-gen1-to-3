@@ -132,30 +132,34 @@ export function extractGen1BoxMons(raw: Uint8Array): Gen1BoxMon[] {
 
   const mons: Gen1BoxMon[] = [];
   
-  // Gen 1 save structure: 12 boxes total in two SRAM banks
-  // Bank 1 (0x4000): Boxes 1-6
-  // Bank 2 (0x6000): Boxes 7-12
-  // Each box is 0x462 bytes
+  // Gen 1 save structure:
+  // - 0x284A: Current box number (0-11 for boxes 1-12)
+  // - 0x4000-0x5FFF: SRAM Bank 0 (boxes 1-6, but bank-switched)
+  // - 0x6000-0x7FFF: SRAM Bank 1 (boxes 7-12, but bank-switched)
+  // 
+  // IMPORTANT: Gen 1 uses bank-switched SRAM. Only certain boxes are available
+  // in the save file at any given time. We scan all potential box locations
+  // and extract any that have valid data (count > 0 and <= 20).
   
   console.log("\n=== Gen 1 Box Extraction ===");
   
   const currentBoxNum = data[0x284A];
   console.log(`Current box selected: Box ${currentBoxNum + 1}`);
   
-  // Extract from all 12 box locations
+  // Scan all potential box locations in both SRAM banks
   const boxBases = [
-    { offset: 0x4000, label: "Box 1" },
-    { offset: 0x4000 + BOX_SIZE * 1, label: "Box 2" },
-    { offset: 0x4000 + BOX_SIZE * 2, label: "Box 3" },
-    { offset: 0x4000 + BOX_SIZE * 3, label: "Box 4" },
-    { offset: 0x4000 + BOX_SIZE * 4, label: "Box 5" },
-    { offset: 0x4000 + BOX_SIZE * 5, label: "Box 6" },
-    { offset: 0x6000, label: "Box 7" },
-    { offset: 0x6000 + BOX_SIZE * 1, label: "Box 8" },
-    { offset: 0x6000 + BOX_SIZE * 2, label: "Box 9" },
-    { offset: 0x6000 + BOX_SIZE * 3, label: "Box 10" },
-    { offset: 0x6000 + BOX_SIZE * 4, label: "Box 11" },
-    { offset: 0x6000 + BOX_SIZE * 5, label: "Box 12" },
+    { offset: 0x4000, label: "SRAM Bank 0 - Box 1" },
+    { offset: 0x4000 + BOX_SIZE * 1, label: "SRAM Bank 0 - Box 2" },
+    { offset: 0x4000 + BOX_SIZE * 2, label: "SRAM Bank 0 - Box 3" },
+    { offset: 0x4000 + BOX_SIZE * 3, label: "SRAM Bank 0 - Box 4" },
+    { offset: 0x4000 + BOX_SIZE * 4, label: "SRAM Bank 0 - Box 5" },
+    { offset: 0x4000 + BOX_SIZE * 5, label: "SRAM Bank 0 - Box 6" },
+    { offset: 0x6000, label: "SRAM Bank 1 - Box 7" },
+    { offset: 0x6000 + BOX_SIZE * 1, label: "SRAM Bank 1 - Box 8" },
+    { offset: 0x6000 + BOX_SIZE * 2, label: "SRAM Bank 1 - Box 9" },
+    { offset: 0x6000 + BOX_SIZE * 3, label: "SRAM Bank 1 - Box 10" },
+    { offset: 0x6000 + BOX_SIZE * 4, label: "SRAM Bank 1 - Box 11" },
+    { offset: 0x6000 + BOX_SIZE * 5, label: "SRAM Bank 1 - Box 12" },
   ];
 
   for (const { offset, label } of boxBases) {
@@ -166,7 +170,7 @@ export function extractGen1BoxMons(raw: Uint8Array): Gen1BoxMon[] {
     
     const boxMons = parseGen1Box(data, offset, label);
     if (boxMons.length > 0) {
-      console.log(`${label} (0x${offset.toString(16)}): extracted ${boxMons.length} Pokemon - ${boxMons.map(m => `${m.natDex} Lv${m.level}`).join(', ')}`);
+      console.log(`${label} (0x${offset.toString(16)}): ${boxMons.length} Pokemon - ${boxMons.map(m => `#${m.natDex} Lv${m.level}`).join(', ')}`);
       mons.push(...boxMons);
     }
   }
