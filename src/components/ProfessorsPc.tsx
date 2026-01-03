@@ -379,9 +379,6 @@ export default function ProfessorsPc({ selectedMonIds, onSelectMonIds }: Profess
           />
           <span>☑️ Select All</span>
         </label>
-      </div>
-
-      <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 12 }}>
         <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <input 
             type="checkbox" 
