@@ -8,7 +8,6 @@ import { speciesName } from "../lib/dex/dex";
 import { MOVES_GEN3 } from "../lib/dex/moves";
 import { ITEMS_GEN3 } from "../lib/dex/items";
 import { deleteAllProfessorMons, deleteSelectedMons, importSaveToProfessorPc, repairProfessorMonMetadata, repairBadEggIssues } from "../stores/professorsPcStore";
-import { sha256Hex } from "../lib/binary/fingerprint";
 
 function displayNameForRow(row: ProfessorMonRow): { 
   displayName: string; 
@@ -268,37 +267,37 @@ export default function ProfessorsPc({ selectedMonIds, onSelectMonIds }: Profess
   }
 
   async function onRemoveDuplicates() {
-    if (!confirm(`Scan for and remove exact duplicate Pokémon?\n\nThis will keep the first occurrence and delete duplicates based on fingerprint (PID, IVs, species, moves, OT).\n\nPokémon with different PIDs or IVs are NOT considered duplicates.`)) return;
+    if (!confirm(`Scan for and remove duplicate Pokémon?\n\nThis will detect duplicates based on visible data:\n• Species, Nickname, Level/Experience\n• Moves, Nature, OT Name/ID\n• Shiny and Pokérus status\n\nPokémon from different save files with matching data will be considered duplicates.\nKeeps the first occurrence, deletes the rest.`)) return;
     
     setBusy(true);
     setStatus("");
     try {
       console.log("\n========================================");
-      console.log("SCANNING FOR DUPLICATE POKÉMON");
+      console.log("SCANNING FOR DUPLICATE POKÉMON (Smart Detection)");
       console.log("========================================");
       console.log(`Total Pokémon: ${mons.length}`);
       
-      // Build fingerprint map
+      // Build smart fingerprint map based on visible attributes
       const fingerprintMap = new Map<string, string[]>();
-      let recalculated = 0;
       
       for (const mon of mons) {
-        let fp = mon.fingerprint;
+        // Create fingerprint from visible data that users can see
+        const visibleData = {
+          species: mon.speciesId,
+          nickname: mon.nickname || '',
+          exp: mon.experience,
+          moves: (mon.moves || []).sort().join(','), // Sort to handle move order differences
+          nature: mon.nature,
+          otName: mon.otName || '',
+          otId: mon.otId,
+          isShiny: mon.isShiny || false,
+          hasPokerus: mon.hasPokerus || false,
+          hadPokerus: mon.hadPokerus || false,
+          heldItem: mon.heldItem || 0
+        };
         
-        // If missing fingerprint, recalculate it
-        if (!fp) {
-          try {
-            fp = await sha256Hex(mon.raw80);
-            recalculated++;
-          } catch (err) {
-            console.warn(`Failed to compute fingerprint for ${mon.id}:`, err);
-            continue;
-          }
-        }
-        
-        if (!fp) {
-          continue;
-        }
+        // Create a stable string representation
+        const fp = JSON.stringify(visibleData);
         
         if (!fingerprintMap.has(fp)) {
           fingerprintMap.set(fp, []);
@@ -306,10 +305,8 @@ export default function ProfessorsPc({ selectedMonIds, onSelectMonIds }: Profess
         fingerprintMap.get(fp)!.push(mon.id);
       }
       
-      console.log(`Unique fingerprints: ${fingerprintMap.size}`);
-      if (recalculated > 0) {
-        console.log(`Recalculated ${recalculated} missing fingerprints`);
-      }
+      console.log(`Unique Pokémon (by visible data): ${fingerprintMap.size}`);
+      console.log(`Using smart detection: Species + Nickname + Exp + Moves + Nature + OT + Status`);
       
       // Find duplicates (keep first, delete rest)
       const toDelete: string[] = [];
@@ -323,26 +320,27 @@ export default function ProfessorsPc({ selectedMonIds, onSelectMonIds }: Profess
           // Log first pokemon in group for context
           const firstMon = mons.find(m => m.id === ids[0]);
           const dupCount = ids.length - 1;
-          console.log(`Duplicate group #${duplicateGroups}: ${firstMon?.nickname || firstMon?.speciesId} - ${dupCount} duplicate(s)`);
-          console.log(`  Keeping: ${ids[0]}`);
+          const nickname = firstMon?.nickname || speciesName(firstMon?.speciesId || 0);
+          console.log(`Duplicate group #${duplicateGroups}: ${nickname} (${firstMon?.otName || '???'}) - ${dupCount} duplicate(s)`);
+          console.log(`  Keeping: ${ids[0]} (created: ${new Date(firstMon?.createdAt || 0).toLocaleString()})`);
           console.log(`  Deleting: ${ids.slice(1).join(', ')}`);
         }
       }
       
       if (toDelete.length === 0) {
-        console.log("✅ No exact duplicates found.");
-        console.log("\nNote: Pokémon that look similar but have different PIDs, IVs, or came from different saves are NOT considered duplicates.");
-        console.log("This is intentional to protect unique Pokémon (like shinies).");
-        setStatus("✅ No exact duplicates found. (See console for details)");
+        console.log("✅ No duplicates found.");
+        console.log("\nAll Pokémon have unique combinations of species, nickname, experience, moves, nature, and OT.");
+        setStatus("✅ No duplicates found. All Pokémon are unique!");
         setBusy(false);
         return;
       }
       
       console.log(`\nDeleting ${toDelete.length} duplicates from ${duplicateGroups} groups`);
+      console.log("Note: These Pokémon matched on all visible attributes (likely from duplicate save imports)");
       console.log("========================================\n");
       
       await deleteSelectedMons(toDelete);
-      setStatus(`✅ Removed ${toDelete.length} exact duplicate(s) from ${duplicateGroups} group(s).`);
+      setStatus(`✅ Removed ${toDelete.length} duplicate(s) from ${duplicateGroups} group(s). Check console for details.`);
       onSelectMonIds([]);
       await refresh();
     } catch (err: any) {
