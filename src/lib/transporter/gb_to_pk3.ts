@@ -272,6 +272,8 @@ export function convertGen2BoxMonToPk3(mon: Gen2BoxMon): Uint8Array {
   // Gen 2 stored moves in different internal order than Gen 3
   const gen3Moves = convertGen2MovesToGen3(mon.moves);
   
+  console.log(`Gen2→PK3 Moves: Raw Gen2=[${mon.moves.join(', ')}] → Gen3=[${gen3Moves.join(', ')}] for species ${speciesId}`);
+  
   // Sanitize moves according to PCCS ORIGINAL method
   const { moves: cleanedMoves, ppUps: _cleanedPPUps } = sanitizeMoveset(
     speciesId,
