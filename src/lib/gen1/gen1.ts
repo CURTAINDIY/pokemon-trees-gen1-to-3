@@ -132,39 +132,27 @@ export function extractGen1BoxMons(raw: Uint8Array): Gen1BoxMon[] {
 
   const mons: Gen1BoxMon[] = [];
   
-  // Gen 1 has 12 boxes across two banks:
-  // Bank 1 (Boxes 1-6): 0x2000 base
-  // Bank 2 (Boxes 7-12): 0x6000 base  
-  // Current box: 0x4000 (already in one of the banks, so may be duplicate)
+  // Gen 1 saves only reliably store the CURRENT box at 0x4000
+  // The boxes at 0x2000 and 0x6000 contain stale/outdated data from when
+  // those boxes were previously active. Only 0x4000 is guaranteed current.
+  // 
+  // To transfer all Pokemon, the player must:
+  // 1. Switch to Box 1, save, import
+  // 2. Switch to Box 2, save, import
+  // 3. Repeat for all 12 boxes
+  //
+  // This is a limitation of the Gen 1 save format - only one box is "active"
+  // at a time in the save file.
   console.log("\n=== Gen 1 Box Extraction ===");
+  console.log("Reading current box at 0x4000...");
   
-  const boxBases = [
-    // Bank 1: Boxes 1-6 at 0x2000
-    0x2000,
-    0x2000 + BOX_SIZE * 1,
-    0x2000 + BOX_SIZE * 2,
-    0x2000 + BOX_SIZE * 3,
-    0x2000 + BOX_SIZE * 4,
-    0x2000 + BOX_SIZE * 5,
-    // Bank 2: Boxes 7-12 at 0x6000
-    0x6000,
-    0x6000 + BOX_SIZE * 1,
-    0x6000 + BOX_SIZE * 2,
-    0x6000 + BOX_SIZE * 3,
-    0x6000 + BOX_SIZE * 4,
-    0x6000 + BOX_SIZE * 5,
-  ];
-
-  for (let i = 0; i < boxBases.length; i++) {
-    const base = boxBases[i];
-    if (base + BOX_SIZE > data.length) {
-      console.log(`Box ${i + 1} at offset 0x${base.toString(16)} exceeds save size, skipping`);
-      continue;
-    }
-    
-    const boxMons = parseGen1Box(data, base);
-    console.log(`Box ${i + 1} at 0x${base.toString(16)}: extracted ${boxMons.length} Pokemon`);
+  const currentBoxBase = 0x4000;
+  if (currentBoxBase + BOX_SIZE <= data.length) {
+    const boxMons = parseGen1Box(data, currentBoxBase);
+    console.log(`Current box: extracted ${boxMons.length} Pokemon`);
     mons.push(...boxMons);
+  } else {
+    console.log("Current box offset exceeds save size");
   }
   
   console.log(`Total Gen 1 Pokemon extracted: ${mons.length}`);
