@@ -9,8 +9,6 @@ import { MOVES_GEN3 } from "../lib/dex/moves";
 import { ITEMS_GEN3 } from "../lib/dex/items";
 import { getLevelForSpeciesExp } from "../lib/dex/expGroups";
 import { deleteAllProfessorMons, deleteSelectedMons, importSaveToProfessorPc, repairProfessorMonMetadata, repairProfessorMonChecksums, repairBadEggIssues } from "../stores/professorsPcStore";
-import { diagnoseSave } from "../lib/gen3/diagnose_save";
-import { debugAzumarillBadEgg } from "../lib/gen3/debugAzumarill";
 
 function displayNameForRow(row: ProfessorMonRow): { 
   displayName: string; 
@@ -228,33 +226,6 @@ export default function ProfessorsPc({ selectedMonIds, onSelectMonIds }: Profess
     }
   }
 
-  async function onDiagnoseSave(e: React.ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0];
-    if (!f) return;
-    const bytes = new Uint8Array(await f.arrayBuffer());
-    
-    console.log("\n========================================");
-    console.log("SAVE FILE DIAGNOSTICS");
-    console.log("========================================");
-    diagnoseSave(bytes, 20); // Show first 20 Pokemon
-    setStatus("✅ Diagnostic output written to console (F12 → Console tab)");
-    
-    e.target.value = "";
-  }
-
-  async function onDebugAzumarill() {
-    setBusy(true);
-    setStatus("");
-    try {
-      await debugAzumarillBadEgg();
-      setStatus("✅ Azumarill debug analysis complete - check console (F12)");
-    } catch (err: any) {
-      setStatus(`Debug failed: ${err?.message ?? String(err)}`);
-    } finally {
-      setBusy(false);
-    }
-  }
-
   async function onFixBadEgg() {
     if (selectedMonIds.length === 0) {
       setStatus("No Pokémon selected. Select Pokemon to fix Bad Egg issues.");
@@ -284,15 +255,6 @@ export default function ProfessorsPc({ selectedMonIds, onSelectMonIds }: Profess
         <label>
           <input type="file" accept=".sav,.SAV" disabled={busy} onChange={onImportSave} />
         </label>
-        <label>
-          <input type="file" accept=".sav,.SAV" disabled={busy} onChange={onDiagnoseSave} style={{ display: 'none' }} id="diagnose-input" />
-          <button disabled={busy} onClick={() => document.getElementById('diagnose-input')?.click()} style={{ cursor: 'pointer' }}>
-            🔍 Diagnose Save
-          </button>
-        </label>
-        <button disabled={busy} onClick={onDebugAzumarill} style={{ cursor: 'pointer' }}>
-          🐛 Debug Azumarill
-        </button>
         <button disabled={busy} onClick={onRepair}>
           🔧 Repair Metadata
         </button>
