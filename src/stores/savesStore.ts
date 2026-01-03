@@ -13,7 +13,7 @@ import { SaveValidator, type ValidationResult } from "../lib/validation/saveVali
 import { withDiagnostics, type DiagnosticContext } from "../lib/diagnostics/errorHandler";
 
 
-export function randomId(prefix: string): string {
+export function randomId(_prefix: string): string {
   // Use UUID v4 for better uniqueness and collision prevention
   return uuid();
 }
@@ -245,6 +245,7 @@ export const savesStore = {
       id: randomId("sav"),
       filename: file.name,
       createdAt: Date.now(),
+      uploadedAt: Date.now(),
       bytes,
       kind,
       notes,

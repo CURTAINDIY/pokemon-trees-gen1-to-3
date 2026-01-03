@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { idb, ProfessorMonRow, SavedFileRow } from "../db/idb";
 import { injectGen3BoxMons, findEmptySlots, GEN3_SAVE_SIZE } from "../lib/gen3/gen3";
 import { downloadBytes } from "../lib/binary/download";

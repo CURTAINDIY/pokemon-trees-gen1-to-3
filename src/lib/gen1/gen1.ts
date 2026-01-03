@@ -45,7 +45,7 @@ const BOX_SIZE = 0x462;
 const BOX_COUNT_OFF = 0;
 const BOX_SPECIES_OFF = 1;
 const BOX_MONS_OFF = 0x16;
-const BOX_NICK_OFF = 0x386;
+// const BOX_NICK_OFF = 0x386;  // Unused currently
 const MON_SIZE = 33;
 
 export function detectGen1Save(raw: Uint8Array): boolean {
@@ -152,21 +152,21 @@ function parseGen1Box(data: Uint8Array, base: number): Gen1BoxMon[] {
     const raw33 = data.slice(monOff, monOff + MON_SIZE);
 
     // Parse boxed mon structure
-    const species = raw33[0];
-    const hp = readU16BE(raw33, 1);
+    // const species = raw33[0];  // Unused
+    // const hp = readU16BE(raw33, 1);  // Unused
     const level = raw33[3];
-    const status = raw33[4];
-    const type1 = raw33[5];
-    const type2 = raw33[6];
-    const catchRate = raw33[7];
+    // const status = raw33[4];  // Unused
+    // const type1 = raw33[5];  // Unused
+    // const type2 = raw33[6];  // Unused
+    // const catchRate = raw33[7];  // Unused
     const moves = [raw33[8], raw33[9], raw33[10], raw33[11]] as [number, number, number, number];
     const otId16 = readU16BE(raw33, 12);
     const exp = readU24BE(raw33, 14);
-    const hpEV = readU16BE(raw33, 17);
-    const atkEV = readU16BE(raw33, 19);
-    const defEV = readU16BE(raw33, 21);
-    const speEV = readU16BE(raw33, 23);
-    const spcEV = readU16BE(raw33, 25);
+    // const hpEV = readU16BE(raw33, 17);  // Unused
+    // const atkEV = readU16BE(raw33, 19);  // Unused
+    // const defEV = readU16BE(raw33, 21);  // Unused
+    // const speEV = readU16BE(raw33, 23);  // Unused
+    // const spcEV = readU16BE(raw33, 25);  // Unused
     const dvs = readU16BE(raw33, 27);
     const pps = [raw33[29], raw33[30], raw33[31], raw33[32]] as [number, number, number, number];
 

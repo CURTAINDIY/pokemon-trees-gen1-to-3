@@ -109,7 +109,7 @@ export function fixPk3MetLevel(raw80: Uint8Array, speciesId: number): boolean {
   const experience = readU32LE(plain, 0x04);
   
   // Read species from Growth block (block 0, offset 0x00)
-  const speciesIndex = readU16LE(plain, 0x00);
+  // const speciesIndex = readU16LE(plain, 0x00);  // Unused
   
   // Calculate correct level from experience
   const correctLevel = getLevelForSpeciesExp(speciesId, experience);

@@ -4,15 +4,14 @@
 
 import type { Gen2BoxMon } from '../types';
 import { gen2IndexToNatDex } from './gen2_index_to_natdex';
-import { speciesName } from '../dex/dex';
 
 export const GEN2_SAVE_SIZE = 0x8000; // 32KB
 
 // Gen 2 signature locations
 export const GEN2_CHECKSUM_LOC = 0x2D69; // Main checksum location
 export const GEN2_PLAYER_NAME_LOC = 0x200B;
-const GEN2_BOX_COUNT = 14;
-const GEN2_BOX_SIZE = 0x450; // Gen 2 box structure size
+// const GEN2_BOX_COUNT = 14;  // Unused currently
+// const GEN2_BOX_SIZE = 0x450;  // Unused currently
 
 function readU16BE(b: Uint8Array, o: number): number {
   return (b[o] << 8) | b[o + 1];
@@ -58,13 +57,14 @@ function normalizeGen2Save(raw: Uint8Array): Uint8Array {
   return raw;
 }
 
-function computeGen2Checksum(data: Uint8Array, start: number, end: number): number {
-  let sum = 0;
-  for (let i = start; i < end; i++) {
-    sum = (sum + data[i]) & 0xFFFF;
-  }
-  return sum;
-}
+// Unused currently - kept for reference
+// function computeGen2Checksum(data: Uint8Array, start: number, end: number): number {
+//   let sum = 0;
+//   for (let i = start; i < end; i++) {
+//     sum = (sum + data[i]) & 0xFFFF;
+//   }
+//   return sum;
+// }
 
 export function detectGen2Save(raw: Uint8Array): boolean {
   const data = normalizeGen2Save(raw);
@@ -220,16 +220,16 @@ function parseGen2Box(data: Uint8Array, base: number, boxNum: number): Gen2BoxMo
     const moves = [raw32[2], raw32[3], raw32[4], raw32[5]] as [number, number, number, number];
     const otId16 = readU16BE(raw32, 6);
     const exp = readU24BE(raw32, 8);
-    const hpEV = readU16BE(raw32, 11);
-    const atkEV = readU16BE(raw32, 13);
-    const defEV = readU16BE(raw32, 15);
-    const speEV = readU16BE(raw32, 17);
-    const spcEV = readU16BE(raw32, 19);
+    // const hpEV = readU16BE(raw32, 11);  // Unused
+    // const atkEV = readU16BE(raw32, 13);  // Unused
+    // const defEV = readU16BE(raw32, 15);  // Unused
+    // const speEV = readU16BE(raw32, 17);  // Unused
+    // const spcEV = readU16BE(raw32, 19);  // Unused
     const dvs = readU16BE(raw32, 21);
     const pps = [raw32[23], raw32[24], raw32[25], raw32[26]] as [number, number, number, number];
-    const friendship = raw32[27];
-    const pokerus = raw32[28];
-    const caughtData = readU16BE(raw32, 29);
+    // const friendship = raw32[27];  // Unused
+    // const pokerus = raw32[28];  // Unused
+    // const caughtData = readU16BE(raw32, 29);  // Unused
     const level = raw32[31];
 
     if (speciesId === 0 || speciesId > 251) {

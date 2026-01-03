@@ -1,8 +1,6 @@
 // src/lib/gen3/pk3DeepDump.ts
 // Complete dump of all PK3 internal data
 
-import { decodePk3 } from './pk3';
-
 function readU16LE(b: Uint8Array, off: number): number {
   return (b[off] | (b[off + 1] << 8)) >>> 0;
 }
@@ -56,7 +54,7 @@ export function deepDumpPk3(raw80: Uint8Array): void {
     return;
   }
   
-  const decoded = decodePk3(raw80);
+  // const decoded = decodePk3(raw80);  // Unused in current implementation
   
   // Decrypt and unshuffle to get raw block data
   const pid = readU32LE(raw80, 0x00);

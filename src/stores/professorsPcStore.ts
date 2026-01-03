@@ -129,6 +129,7 @@ export async function importSaveToProfessorPc(saveBytes: Uint8Array, label: stri
     id: saveId, 
     filename: label, 
     createdAt, 
+    uploadedAt: createdAt,
     bytes: saveBytes, 
     kind: sourceGen
   });
@@ -314,15 +315,15 @@ export async function repairProfessorMonChecksums(monIds: string[]): Promise<{ r
       ivHp: decoded.ivs?.hp,
       ivAtk: decoded.ivs?.atk,
       ivDef: decoded.ivs?.def,
-      ivSpAtk: decoded.ivs?.spAtk,
-      ivSpDef: decoded.ivs?.spDef,
-      ivSpeed: decoded.ivs?.speed,
+      ivSpa: decoded.ivs?.spa,
+      ivSpd: decoded.ivs?.spd,
+      ivSpe: decoded.ivs?.spe,
       evHp: decoded.evs?.hp,
       evAtk: decoded.evs?.atk,
       evDef: decoded.evs?.def,
-      evSpAtk: decoded.evs?.spAtk,
-      evSpDef: decoded.evs?.spDef,
-      evSpeed: decoded.evs?.speed,
+      evSpa: decoded.evs?.spa,
+      evSpd: decoded.evs?.spd,
+      evSpe: decoded.evs?.spe,
       nature: decoded.nature,
       natureName: decoded.natureName,
       pokerus: decoded.pokerus,
@@ -569,7 +570,7 @@ export async function repairProfessorMonMetadata(): Promise<void> {
 
 // Compatibility export for SaveVault component
 export const professorsPcStore = {
-  importFromSave: async (kind: "gen1" | "gen2" | "gen3", saveId: string, bytes: Uint8Array) => {
+  importFromSave: async (_kind: "gen1" | "gen2" | "gen3", saveId: string, bytes: Uint8Array) => {
     return importSaveToProfessorPc(bytes, `save_${saveId}`);
   },
 };

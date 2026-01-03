@@ -375,7 +375,7 @@ export class DiagnosticSystem {
   /**
    * Generate recovery actions based on error analysis
    */
-  private generateRecoveryActions(error: DetailedError, context: DiagnosticContext): RecoveryAction[] {
+  private generateRecoveryActions(error: DetailedError, _context: DiagnosticContext): RecoveryAction[] {
     const actions: RecoveryAction[] = [];
 
     switch (error.type) {

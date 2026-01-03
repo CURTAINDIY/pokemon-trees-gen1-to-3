@@ -7,6 +7,13 @@ import type { IVs, EVs } from '../types';
 import { gen3IndexToNatDex } from './gen3_index_to_natdex';
 import { natureFromPid } from '../dex/dex';
 
+// Type extension for debug flag
+declare global {
+  interface Window {
+    __mudkipRawLogged?: boolean;
+  }
+}
+
 export type Pk3Decoded = {
   pid: number;
   otId: number;
@@ -44,7 +51,7 @@ export type Pk3Decoded = {
   otGender?: number;
 };
 
-const GEN3_MAX_SPECIES = 386;
+// const GEN3_MAX_SPECIES = 386;  // Unused currently
 
 // Bulbapedia-style block order table:
 // indices: 0=Growth, 1=Attacks, 2=EV/Condition, 3=Misc
@@ -149,9 +156,10 @@ function unshuffle48(
   return plain;
 }
 
-function speciesLooksValid(speciesId: number): boolean {
-  return Number.isInteger(speciesId) && speciesId >= 1 && speciesId <= GEN3_MAX_SPECIES;
-}
+// Unused utility function - kept for reference
+// function speciesLooksValid(speciesId: number): boolean {
+//   return Number.isInteger(speciesId) && speciesId >= 1 && speciesId <= GEN3_MAX_SPECIES;
+// }
 
 export function isProbablyEmptyPk3(raw80: Uint8Array): boolean {
   if (raw80.length !== 80) return false;

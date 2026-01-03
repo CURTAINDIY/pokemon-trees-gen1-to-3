@@ -7,7 +7,6 @@ import { decodePk3 } from "../lib/gen3/pk3";
 import { speciesName } from "../lib/dex/dex";
 import { MOVES_GEN3 } from "../lib/dex/moves";
 import { ITEMS_GEN3 } from "../lib/dex/items";
-import { getLevelForSpeciesExp } from "../lib/dex/expGroups";
 import { deleteAllProfessorMons, deleteSelectedMons, importSaveToProfessorPc, repairProfessorMonMetadata, repairProfessorMonChecksums, repairBadEggIssues } from "../stores/professorsPcStore";
 
 function displayNameForRow(row: ProfessorMonRow): { 
@@ -61,12 +60,14 @@ function getItemName(itemId: number | undefined): string {
   return ITEMS_GEN3[itemId] || `Item ${itemId}`;
 }
 
+/* Unused helper functions - kept for future use
 function formatIVs(row: ProfessorMonRow): string {
   if (!row.checksumOk) return "—";
   const ivs = [row.ivHp, row.ivAtk, row.ivDef, row.ivSpa, row.ivSpd, row.ivSpe];
   if (ivs.some(v => v === undefined)) return "—";
   return ivs.join("/");
 }
+*/
 
 function formatPokerus(row: ProfessorMonRow): string {
   if (!row.checksumOk) return "—";
@@ -75,6 +76,7 @@ function formatPokerus(row: ProfessorMonRow): string {
   return "—";
 }
 
+/* Unused helper function - kept for future use
 function calculateDisplayLevel(row: ProfessorMonRow): number {
   // Calculate actual level from experience for display
   if (!row.checksumOk || !row.experience || !row.speciesId) {
@@ -87,6 +89,7 @@ function calculateDisplayLevel(row: ProfessorMonRow): number {
     return row.level ?? row.metLevel ?? 0;
   }
 }
+*/
 
 interface ProfessorsPcProps {
   selectedMonIds: string[];

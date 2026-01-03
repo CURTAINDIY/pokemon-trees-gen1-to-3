@@ -63,13 +63,13 @@ export function SaveVault(props: { onSelectSaveId?: (id: string) => void }) {
   }
 
   async function cloneToProfessorsPc() {
-    if (!selected) return;
+    if (!selected || !selected.kind) return;
     try {
       const stats = await professorsPcStore.importFromSave(selected.kind, selected.id, selected.bytes);
       const parts: string[] = [];
       parts.push(`added ${stats.added}`);
       if (stats.skippedDuplicates) parts.push(`skipped ${stats.skippedDuplicates} duplicates`);
-      setStatus(`Cloned boxed mons into Professor’s PC (${selected.kind.toUpperCase()}): ${parts.join(", ")}.`);
+      setStatus(`Cloned boxed mons into Professor's PC (${selected.kind?.toUpperCase() || 'UNKNOWN'}): ${parts.join(", ")}.`);
     } catch (err) {
       setStatus(`Clone failed: ${(err as Error).message}`);
     }
@@ -114,9 +114,9 @@ ${selected.filename}`)) return;
               <li key={r.id} className={r.id === selectedId ? "selected" : ""}>
                 <button onClick={() => onSelect(r.id)}>Select</button>{" "}
                 <span>
-                  {r.filename} <small style={{ opacity: 0.7 }}>({r.kind.toUpperCase()})</small>
+                  {r.filename} <small style={{ opacity: 0.7 }}>({r.kind?.toUpperCase() || 'UNKNOWN'})</small>
                 </span>
-                <small> — {new Date(r.createdAt).toLocaleString()}</small>
+                <small> — {new Date(r.createdAt ?? r.uploadedAt).toLocaleString()}</small>
               </li>
             ))}
           </ul>

@@ -17,21 +17,41 @@ export interface ProfessorMonRow {
   checksumOk?: boolean;
   pid?: number;
   otName?: string;
-  trainerId?: number;
+  otId?: number;  // Original trainer ID (combined)
+  trainerId?: number;  // Lower 16 bits
+  secretId?: number;  // Upper 16 bits
   natureName?: string;
+  otGender?: number;
   isShiny?: boolean;
   heldItem?: number;
   moves?: number[];
+  movePPs?: number[];
   experience?: number;
   metLevel?: number;
+  metLocation?: number;
+  ballCaughtWith?: number;
+  // IVs
   ivHp?: number;
   ivAtk?: number;
   ivDef?: number;
   ivSpa?: number;
   ivSpd?: number;
   ivSpe?: number;
+  // EVs
+  evHp?: number;
+  evAtk?: number;
+  evDef?: number;
+  evSpa?: number;
+  evSpd?: number;
+  evSpe?: number;
+  // Pokerus and other
+  nature?: number;
+  pokerus?: number;
   hasPokerus?: boolean;
   hadPokerus?: boolean;
+  friendship?: number;
+  ability?: number;
+  abilityName?: string;
   sourceSaveId?: string;
 }
 
@@ -43,8 +63,8 @@ export interface SavedFileRow {
   generation?: "gen1" | "gen2" | "gen3";
   gameVersion?: string;
   // Additional properties used by stores
-  kind?: "gen1" | "gen2" | "gen3";
-  createdAt?: number;
+  kind: "gen1" | "gen2" | "gen3";  // Required for stores
+  createdAt: number;  // Required for stores
   notes?: string;
 }
 

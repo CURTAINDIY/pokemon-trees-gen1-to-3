@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import { useState } from "react";
 import { SaveVault } from "./components/SaveVault";
 import ProfessorsPc from "./components/ProfessorsPc";
 import { Injector } from "./components/Injector";
@@ -9,6 +9,7 @@ export default function App() {
   const [tab, setTab] = useState<Tab>("vault");
   const [selectedMonIds, setSelectedMonIds] = useState<string[]>([]);
 
+  /* Unused helper functions - kept for future use
   function toggleMon(id: string) {
     setSelectedMonIds((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
@@ -18,6 +19,7 @@ export default function App() {
   function clearSelected() {
     setSelectedMonIds([]);
   }
+  */
 
   return (
     <div className="app">

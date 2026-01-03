@@ -1,9 +1,10 @@
 // src/lib/gen3/pk3EggBitFix.ts
 // Fix the egg bit in PK3 data (bit 30 of IV word should be 0 for hatched Pokemon)
 
-function readU16LE(b: Uint8Array, off: number): number {
-  return (b[off] | (b[off + 1] << 8)) >>> 0;
-}
+// Unused utility - kept for reference
+// function readU16LE(b: Uint8Array, off: number): number {
+//   return (b[off] | (b[off + 1] << 8)) >>> 0;
+// }
 
 function readU32LE(b: Uint8Array, off: number): number {
   return (

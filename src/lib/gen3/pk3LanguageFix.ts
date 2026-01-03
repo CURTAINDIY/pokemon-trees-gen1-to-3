@@ -41,7 +41,7 @@ export function fixPk3Language(
   }
 
   const currentLanguage = readU16LE(raw80, 0x12);
-  const validLanguages = Object.values(VALID_GEN3_LANGUAGES);
+  const validLanguages = Object.values(VALID_GEN3_LANGUAGES) as number[];
 
   // Check if current language is valid
   if (validLanguages.includes(currentLanguage)) {
@@ -81,7 +81,7 @@ export function fixPk3LanguageBatch(
 export function isPk3LanguageValid(raw80: Uint8Array): boolean {
   if (raw80.length !== 80) return false;
   const language = readU16LE(raw80, 0x12);
-  const validLanguages = Object.values(VALID_GEN3_LANGUAGES);
+  const validLanguages = Object.values(VALID_GEN3_LANGUAGES) as number[];
   return validLanguages.includes(language);
 }
 

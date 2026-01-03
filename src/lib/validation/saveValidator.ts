@@ -355,7 +355,7 @@ export class SaveValidator {
   /**
    * Check for common emulator artifacts and file modifications
    */
-  private static checkEmulatorArtifacts(bytes: Uint8Array, filename: string, result: ValidationResult): void {
+  private static checkEmulatorArtifacts(bytes: Uint8Array, _filename: string, result: ValidationResult): void {
     // Check for file size irregularities that indicate emulator artifacts
     const knownSizes = [32768, 131072, 131088, 131104]; // Common save sizes + artifacts
     
@@ -489,7 +489,7 @@ export function diagnosePk3Shuffle(raw80: Uint8Array): {
 
   const decoded = decodePk3(raw80);
 
-  console.log('Checksum (calculated):', decoded.computedChecksum.toString(16).padStart(4, '0'));
+  console.log('Checksum (calculated):', decoded.checksumCalculated.toString(16).padStart(4, '0'));
   console.log('Checksum OK:', decoded.checksumOk);
   console.log('Decoded species ID:', decoded.speciesId);
   console.log('Species valid (1-386):', decoded.speciesId !== null && decoded.speciesId >= 1 && decoded.speciesId <= 386);
@@ -508,7 +508,7 @@ export function diagnosePk3Shuffle(raw80: Uint8Array): {
     otId,
     permIndex,
     checksumStored,
-    checksumCalculated: decoded.computedChecksum,
+    checksumCalculated: decoded.checksumCalculated,
     checksumOk: decoded.checksumOk,
     speciesId: decoded.speciesId,
     interpretation

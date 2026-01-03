@@ -2,8 +2,6 @@
 // Gen 3 item name table (Ruby/Sapphire/Emerald)
 // ID is Gen3 item id.
 
-import { SPECIES_GEN3 } from './species';
-
 export const ITEMS_GEN3: Record<number, string> = {
   0: "(none)",
   1: "Master Ball",

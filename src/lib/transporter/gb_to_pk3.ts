@@ -4,7 +4,7 @@
 import type { Gen1BoxMon, Gen2BoxMon, IVs } from '../types';
 import { buildPk3BoxMon } from '../gen3/pk3';
 import { sanitizeMoveset } from '../dex/moveLegality';
-import { speciesName } from '../dex/dex';
+import { speciesName, NATURES } from '../dex/dex';
 import { convertGen2ItemToGen3 } from './itemMapping';
 
 function lcrgNext(seed: number): number {
@@ -95,7 +95,7 @@ function generateShinyPID(nature: number, trainerId: number): number {
   if ((pid % 25) !== nature) {
     // Adjust to match nature
     const currentNature = pid % 25;
-    const diff = nature - currentNature;
+    // const diff = nature - currentNature;  // Unused
     pid = (pid - currentNature + nature);
     if (pid < 0) pid += 0x100000000;
   }
@@ -103,15 +103,14 @@ function generateShinyPID(nature: number, trainerId: number): number {
   return pid >>> 0;
 }
 
-// Check if PID is legal for given nature
-function isPIDLegalForNature(pid: number, nature: number): boolean {
-  return (pid % 25) === nature;
-}
+// Unused utility functions - kept for reference
+// function isPIDLegalForNature(pid: number, nature: number): boolean {
+//   return (pid % 25) === nature;
+// }
 
-// Check if ability matches PID
-function getAbilityFromPID(pid: number): number {
-  return pid & 1; // 0 or 1
-}
+// function getAbilityFromPID(pid: number): number {
+//   return pid & 1; // 0 or 1
+// }
 
 // Generate legal PID using Method 1 (standard wild encounter method)
 // This ensures PID % 25 matches nature and is properly generated from LCRNG
@@ -142,94 +141,10 @@ function generateMethod1PID(nature: number, desiredAbility: number = 0): number 
   // This is less "legal" but ensures we always succeed
   let pid = Math.floor(Math.random() * 0xFFFFFFFF);
   const currentNature = pid % 25;
-  const natureDiff = nature - currentNature;
+  // const natureDiff = nature - currentNature;  // Unused
   pid = (pid - currentNature + nature);
   if (pid < 0) pid += 0x100000000;
   return pid >>> 0;
-}
-
-// Legality validation functions
-interface LegalityIssue {
-  type: 'error' | 'warning';
-  message: string;
-}
-
-function validatePk3Legality(pk3Data: {
-  pid: number;
-  ivs: IVs;
-  speciesId: number;
-  moves: number[];
-}): LegalityIssue[] {
-  const issues: LegalityIssue[] = [];
-  
-  // Check PID/Nature correlation
-  const nature = pk3Data.pid % 25;
-  if (nature < 0 || nature >= 25) {
-    issues.push({
-      type: 'error',
-      message: `Invalid nature from PID: ${nature}`
-    });
-  }
-  
-  // Check IVs are in valid range
-  const ivArray = [pk3Data.ivs.hp, pk3Data.ivs.atk, pk3Data.ivs.def, 
-                   pk3Data.ivs.spa, pk3Data.ivs.spd, pk3Data.ivs.spe];
-  for (let i = 0; i < ivArray.length; i++) {
-    if (ivArray[i] < 0 || ivArray[i] > 31) {
-      issues.push({
-        type: 'error',
-        message: `Invalid IV at index ${i}: ${ivArray[i]} (must be 0-31)`
-      });
-    }
-  }
-  
-  // Check species ID
-  if (pk3Data.speciesId < 1 || pk3Data.speciesId > 386) {
-    issues.push({
-      type: 'error',
-      message: `Invalid species ID: ${pk3Data.speciesId}`
-    });
-  }
-  
-  // Check moves (basic validation)
-  for (let i = 0; i < pk3Data.moves.length; i++) {
-    if (pk3Data.moves[i] < 0 || pk3Data.moves[i] > 354) {
-      issues.push({
-        type: 'warning',
-        message: `Move ${i} has invalid ID: ${pk3Data.moves[i]}`
-      });
-    }
-  }
-  
-  return issues;
-}
-
-// Auto-fix common legality issues
-function autoFixLegality(pk3Data: {
-  pid: number;
-  ivs: IVs;
-  speciesId: number;
-  moves: number[];
-}): void {
-  // Clamp IVs to valid range
-  pk3Data.ivs.hp = Math.max(0, Math.min(31, pk3Data.ivs.hp));
-  pk3Data.ivs.atk = Math.max(0, Math.min(31, pk3Data.ivs.atk));
-  pk3Data.ivs.def = Math.max(0, Math.min(31, pk3Data.ivs.def));
-  pk3Data.ivs.spa = Math.max(0, Math.min(31, pk3Data.ivs.spa));
-  pk3Data.ivs.spd = Math.max(0, Math.min(31, pk3Data.ivs.spd));
-  pk3Data.ivs.spe = Math.max(0, Math.min(31, pk3Data.ivs.spe));
-  
-  // Ensure PID is valid
-  if (pk3Data.pid < 0 || pk3Data.pid > 0xFFFFFFFF) {
-    pk3Data.pid = Math.floor(Math.random() * 0xFFFFFFFF);
-  }
-  
-  // Remove invalid moves (set to 0)
-  for (let i = 0; i < pk3Data.moves.length; i++) {
-    if (pk3Data.moves[i] < 0 || pk3Data.moves[i] > 354) {
-      pk3Data.moves[i] = 0;
-    }
-  }
 }
 
 export function convertGen1BoxMonToPk3(mon: Gen1BoxMon): Uint8Array {
@@ -276,7 +191,7 @@ export function convertGen1BoxMonToPk3(mon: Gen1BoxMon): Uint8Array {
   const ppUps: [number, number, number, number] = [0, 0, 0, 0];
   
   // Sanitize moves according to PCCS ORIGINAL method
-  const { moves: cleanedMoves, ppUps: cleanedPPUps } = sanitizeMoveset(
+  const { moves: cleanedMoves, ppUps: _cleanedPPUps } = sanitizeMoveset(
     speciesId,
     mon.moves,
     ppUps
@@ -349,7 +264,7 @@ export function convertGen2BoxMonToPk3(mon: Gen2BoxMon): Uint8Array {
   const ppUps: [number, number, number, number] = [0, 0, 0, 0];
   
   // Sanitize moves according to PCCS ORIGINAL method
-  const { moves: cleanedMoves, ppUps: cleanedPPUps } = sanitizeMoveset(
+  const { moves: cleanedMoves, ppUps: _cleanedPPUps } = sanitizeMoveset(
     speciesId,
     mon.moves,
     ppUps
