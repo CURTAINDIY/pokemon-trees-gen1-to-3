@@ -132,29 +132,30 @@ export function extractGen1BoxMons(raw: Uint8Array): Gen1BoxMon[] {
 
   const mons: Gen1BoxMon[] = [];
   
-  // Gen 1 save structure:
-  // - 0x284A = Current box number (0-11 for boxes 1-12)
-  // - 0x4000 = Current box data (copy of whichever box is selected)
-  // - 0x6000 = Permanent storage for boxes 1-6 (0x462 bytes each)
-  //
-  // We extract from BOTH locations to get all Pokemon:
-  // - Current box at 0x4000 (may be a duplicate of one at 0x6000)
-  // - All permanent boxes at 0x6000+
+  // Gen 1 save structure: 12 boxes total in two SRAM banks
+  // Bank 1 (0x4000): Boxes 1-6
+  // Bank 2 (0x6000): Boxes 7-12
+  // Each box is 0x462 bytes
   
   console.log("\n=== Gen 1 Box Extraction ===");
   
   const currentBoxNum = data[0x284A];
   console.log(`Current box selected: Box ${currentBoxNum + 1}`);
   
-  // Extract from all box locations
+  // Extract from all 12 box locations
   const boxBases = [
-    { offset: 0x4000, label: "Current box" },
-    { offset: 0x6000, label: "Box 1" },
-    { offset: 0x6000 + BOX_SIZE * 1, label: "Box 2" },
-    { offset: 0x6000 + BOX_SIZE * 2, label: "Box 3" },
-    { offset: 0x6000 + BOX_SIZE * 3, label: "Box 4" },
-    { offset: 0x6000 + BOX_SIZE * 4, label: "Box 5" },
-    { offset: 0x6000 + BOX_SIZE * 5, label: "Box 6" },
+    { offset: 0x4000, label: "Box 1" },
+    { offset: 0x4000 + BOX_SIZE * 1, label: "Box 2" },
+    { offset: 0x4000 + BOX_SIZE * 2, label: "Box 3" },
+    { offset: 0x4000 + BOX_SIZE * 3, label: "Box 4" },
+    { offset: 0x4000 + BOX_SIZE * 4, label: "Box 5" },
+    { offset: 0x4000 + BOX_SIZE * 5, label: "Box 6" },
+    { offset: 0x6000, label: "Box 7" },
+    { offset: 0x6000 + BOX_SIZE * 1, label: "Box 8" },
+    { offset: 0x6000 + BOX_SIZE * 2, label: "Box 9" },
+    { offset: 0x6000 + BOX_SIZE * 3, label: "Box 10" },
+    { offset: 0x6000 + BOX_SIZE * 4, label: "Box 11" },
+    { offset: 0x6000 + BOX_SIZE * 5, label: "Box 12" },
   ];
 
   for (const { offset, label } of boxBases) {
