@@ -6,6 +6,7 @@ import { buildPk3BoxMon } from '../gen3/pk3';
 import { sanitizeMoveset } from '../dex/moveLegality';
 import { speciesName, NATURES } from '../dex/dex';
 import { convertGen2ItemToGen3 } from './itemMapping';
+import { convertGen1MovesToGen3, convertGen2MovesToGen3 } from './moveIndexMapping';
 
 function lcrgNext(seed: number): number {
   return ((seed * 0x41C64E6D) + 0x6073) >>> 0;
@@ -190,10 +191,14 @@ export function convertGen1BoxMonToPk3(mon: Gen1BoxMon): Uint8Array {
   // For simplicity, assume no PP ups (0) - PCCS ORIGINAL doesn't preserve PP ups
   const ppUps: [number, number, number, number] = [0, 0, 0, 0];
   
+  // CRITICAL: Convert Gen 1 move indices to Gen 3 move indices
+  // Gen 1 stored moves in different internal order than Gen 3
+  const gen3Moves = convertGen1MovesToGen3(mon.moves);
+  
   // Sanitize moves according to PCCS ORIGINAL method
   const { moves: cleanedMoves, ppUps: _cleanedPPUps } = sanitizeMoveset(
     speciesId,
-    mon.moves,
+    gen3Moves,
     ppUps
   );
 
@@ -263,10 +268,14 @@ export function convertGen2BoxMonToPk3(mon: Gen2BoxMon): Uint8Array {
   // For simplicity, assume no PP ups (0) - PCCS ORIGINAL doesn't preserve PP ups
   const ppUps: [number, number, number, number] = [0, 0, 0, 0];
   
+  // CRITICAL: Convert Gen 2 move indices to Gen 3 move indices
+  // Gen 2 stored moves in different internal order than Gen 3
+  const gen3Moves = convertGen2MovesToGen3(mon.moves);
+  
   // Sanitize moves according to PCCS ORIGINAL method
   const { moves: cleanedMoves, ppUps: _cleanedPPUps } = sanitizeMoveset(
     speciesId,
-    mon.moves,
+    gen3Moves,
     ppUps
   );
 
