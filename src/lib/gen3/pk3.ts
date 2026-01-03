@@ -201,8 +201,8 @@ export function decodePk3ForDisplay(raw80: Uint8Array): Pk3Decoded {
     console.log('Details:', {
       pid: `0x${pid.toString(16).padStart(8, '0')}`,
       otId: `0x${otId.toString(16).padStart(8, '0')}`,
-      pidMod24: pid % 24,
-      order: SUBSTRUCT_ORDERS[pid % 24],
+      pidMod24: ((pid % 24) + 24) % 24,
+      order: SUBSTRUCT_ORDERS[((pid % 24) + 24) % 24],
       key: `0x${key.toString(16).padStart(8, '0')}`,
       checksumStored: `0x${checksumStored.toString(16).padStart(4, '0')}`,
       checksumCalculated: `0x${checksumCalculated.toString(16).padStart(4, '0')}`,
@@ -433,7 +433,7 @@ export function buildPk3BoxMon(params: {
   // SHUFFLE: Inverse of decoder
   // Decoder does: plain[order[physPos] * 12] = dec[physPos * 12]
   // So encoder must do: shuffled[physPos * 12] = plain[order[physPos] * 12]
-  const order = SUBSTRUCT_ORDERS[params.pid % 24];
+  const order = SUBSTRUCT_ORDERS[((params.pid % 24) + 24) % 24];
   const shuffled = new Uint8Array(48);
   
   for (let physicalPos = 0; physicalPos < 4; physicalPos++) {
