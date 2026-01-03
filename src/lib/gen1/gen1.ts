@@ -165,11 +165,27 @@ function parseGen1Box(data: Uint8Array, base: number): Gen1BoxMon[] {
   const mons: Gen1BoxMon[] = [];
   const count = data[base + BOX_COUNT_OFF];
   
-  if (count > 20) return mons;
+  console.log(`  Box count byte: ${count} at offset 0x${(base + BOX_COUNT_OFF).toString(16)}`);
+  
+  if (count > 20) {
+    console.log(`  ⚠️ Invalid count (>20), returning empty`);
+    return mons;
+  }
+  
+  if (count === 0) {
+    console.log(`  Box is empty (count=0)`);
+    return mons;
+  }
 
+  console.log(`  Reading species list...`);
   for (let i = 0; i < count; i++) {
     const speciesIndex = data[base + BOX_SPECIES_OFF + i];
-    if (speciesIndex === 0 || speciesIndex === 0xFF) continue;
+    console.log(`    Slot ${i + 1}: species index = ${speciesIndex} (0x${speciesIndex.toString(16).padStart(2, '0')})`);
+    
+    if (speciesIndex === 0 || speciesIndex === 0xFF) {
+      console.log(`      Skipping (empty/terminator)`);
+      continue;
+    }
 
     const monOff = base + BOX_MONS_OFF + i * MON_SIZE;
     const raw33 = data.slice(monOff, monOff + MON_SIZE);
@@ -194,7 +210,13 @@ function parseGen1Box(data: Uint8Array, base: number): Gen1BoxMon[] {
     const pps = [raw33[29], raw33[30], raw33[31], raw33[32]] as [number, number, number, number];
 
     const natDex = gen1IndexToNatDex[speciesIndex];
-    if (natDex === 0 || natDex === undefined) continue; // Skip unknown species
+    
+    if (natDex === 0 || natDex === undefined) {
+      console.log(`      ⚠️ Unknown species index ${speciesIndex}, skipping`);
+      continue;
+    }
+    
+    console.log(`      ✓ Valid Pokemon: NatDex #${natDex}, Level ${level}, OT ID ${otId16}`);
 
     mons.push({
       raw33,
