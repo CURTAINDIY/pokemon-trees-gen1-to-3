@@ -11,8 +11,15 @@ export function SaveVault(props: { onSelectSaveId?: (id: string) => void }) {
   const [rows, setRows] = useState<SavedFileRow[]>([]);
   const [selectedId, setSelectedId] = useState<string>("");
   const [status, setStatus] = useState<string>("");
+  const [showHiddenSaves, setShowHiddenSaves] = useState(false);
 
   const selected = useMemo(() => rows.find(r => r.id === selectedId), [rows, selectedId]);
+  
+  // Filter rows to hide save_sav files unless showHiddenSaves is true
+  const visibleRows = useMemo(() => {
+    if (showHiddenSaves) return rows;
+    return rows.filter(r => !r.filename.startsWith("save_sav_"));
+  }, [rows, showHiddenSaves]);
 
   async function refresh() {
     const all = await savesStore.list();
@@ -100,6 +107,14 @@ ${selected.filename}`)) return;
           <b>Import .sav (Gen 1/2/3)</b>{" "}
           <input type="file" accept=".sav,application/octet-stream" onChange={onImport} />
         </label>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 12 }}>
+          <input 
+            type="checkbox" 
+            checked={showHiddenSaves} 
+            onChange={(e) => setShowHiddenSaves(e.target.checked)}
+          />
+          <span>Show Hidden Saves</span>
+        </label>
       </div>
 
       {status && <p className="status">{status}</p>}
@@ -110,7 +125,7 @@ ${selected.filename}`)) return;
         <div className="panel">
           <b>Saved files</b>
           <ul className="list">
-            {rows.map(r => (
+            {visibleRows.map(r => (
               <li key={r.id} className={r.id === selectedId ? "selected" : ""}>
                 <button onClick={() => onSelect(r.id)}>Select</button>{" "}
                 <span>
