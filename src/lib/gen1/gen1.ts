@@ -132,27 +132,35 @@ export function extractGen1BoxMons(raw: Uint8Array): Gen1BoxMon[] {
 
   const mons: Gen1BoxMon[] = [];
   
-  // Gen 1 saves only reliably store the CURRENT box at 0x4000
-  // The boxes at 0x2000 and 0x6000 contain stale/outdated data from when
-  // those boxes were previously active. Only 0x4000 is guaranteed current.
-  // 
-  // To transfer all Pokemon, the player must:
-  // 1. Switch to Box 1, save, import
-  // 2. Switch to Box 2, save, import
-  // 3. Repeat for all 12 boxes
-  //
-  // This is a limitation of the Gen 1 save format - only one box is "active"
-  // at a time in the save file.
-  console.log("\n=== Gen 1 Box Extraction ===");
-  console.log("Reading current box at 0x4000...");
+  // Gen 1 save structure:
+  // - Current box number is stored at 0x284A (0-11 for boxes 1-12)
+  // - Box data is stored at 0x4000 + (boxNum * 0x462)
+  // - We read the current box number and extract from that box's location
   
-  const currentBoxBase = 0x4000;
-  if (currentBoxBase + BOX_SIZE <= data.length) {
-    const boxMons = parseGen1Box(data, currentBoxBase);
-    console.log(`Current box: extracted ${boxMons.length} Pokemon`);
+  console.log("\n=== Gen 1 Box Extraction ===");
+  
+  // Read current box number (0-11 representing boxes 1-12)
+  const currentBoxNum = data[0x284A];
+  console.log(`Current box number byte at 0x284A: ${currentBoxNum} (Box ${currentBoxNum + 1})`);
+  
+  if (currentBoxNum > 11) {
+    console.log(`⚠️ Invalid box number ${currentBoxNum}, defaulting to Box 1`);
+    const boxMons = parseGen1Box(data, 0x4000);
+    console.log(`Box 1: extracted ${boxMons.length} Pokemon`);
     mons.push(...boxMons);
   } else {
-    console.log("Current box offset exceeds save size");
+    // Calculate offset for the current box
+    // Boxes 1-12 are stored sequentially starting at 0x4000
+    const boxOffset = 0x4000 + (currentBoxNum * BOX_SIZE);
+    console.log(`Reading Box ${currentBoxNum + 1} at offset 0x${boxOffset.toString(16)}...`);
+    
+    if (boxOffset + BOX_SIZE <= data.length) {
+      const boxMons = parseGen1Box(data, boxOffset);
+      console.log(`Box ${currentBoxNum + 1}: extracted ${boxMons.length} Pokemon`);
+      mons.push(...boxMons);
+    } else {
+      console.log(`Box ${currentBoxNum + 1} offset exceeds save size`);
+    }
   }
   
   console.log(`Total Gen 1 Pokemon extracted: ${mons.length}`);
