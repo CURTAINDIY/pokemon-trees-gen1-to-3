@@ -5,6 +5,7 @@
 
 import type { IVs, EVs } from '../types';
 import { gen3IndexToNatDex } from './gen3_index_to_natdex';
+import { natureFromPid } from '../dex/dex';
 
 export type Pk3Decoded = {
   pid: number;

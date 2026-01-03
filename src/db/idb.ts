@@ -12,7 +12,27 @@ export interface ProfessorMonRow {
   sourceGen?: "gen1" | "gen2" | "gen3";
   saveId?: string;
   saveLabel?: string;
-  createdAt?: number;
+  createdAt: number;
+  // Additional properties used by stores
+  checksumOk?: boolean;
+  pid?: number;
+  otName?: string;
+  trainerId?: number;
+  natureName?: string;
+  isShiny?: boolean;
+  heldItem?: number;
+  moves?: number[];
+  experience?: number;
+  metLevel?: number;
+  ivHp?: number;
+  ivAtk?: number;
+  ivDef?: number;
+  ivSpa?: number;
+  ivSpd?: number;
+  ivSpe?: number;
+  hasPokerus?: boolean;
+  hadPokerus?: boolean;
+  sourceSaveId?: string;
 }
 
 export interface SavedFileRow {
@@ -22,6 +42,10 @@ export interface SavedFileRow {
   uploadedAt: number;
   generation?: "gen1" | "gen2" | "gen3";
   gameVersion?: string;
+  // Additional properties used by stores
+  kind?: "gen1" | "gen2" | "gen3";
+  createdAt?: number;
+  notes?: string;
 }
 
 export interface DriveFile {
@@ -51,12 +75,29 @@ export const idb = {
     monsStore.push(...mons);
   },
 
+  async putMon(mon: ProfessorMonRow): Promise<void> {
+    const index = monsStore.findIndex(m => m.id === mon.id);
+    if (index !== -1) {
+      monsStore[index] = mon;
+    } else {
+      monsStore.push(mon);
+    }
+  },
+
   async deleteMon(id: string): Promise<void> {
     monsStore = monsStore.filter(m => m.id !== id);
   },
 
   async deleteAllMons(): Promise<void> {
     monsStore = [];
+  },
+
+  async clearMons(): Promise<void> {
+    monsStore = [];
+  },
+
+  async deleteMonsBySourceSaveId(saveId: string): Promise<void> {
+    monsStore = monsStore.filter(m => m.sourceSaveId !== saveId);
   },
 
   async updateMon(id: string, updates: Partial<ProfessorMonRow>): Promise<void> {
@@ -79,11 +120,24 @@ export const idb = {
     savesStore.push(save);
   },
 
+  async putSave(save: SavedFileRow): Promise<void> {
+    const index = savesStore.findIndex(s => s.id === save.id);
+    if (index !== -1) {
+      savesStore[index] = save;
+    } else {
+      savesStore.push(save);
+    }
+  },
+
   async deleteSave(id: string): Promise<void> {
     savesStore = savesStore.filter(s => s.id !== id);
   },
 
   async deleteAllSaves(): Promise<void> {
+    savesStore = [];
+  },
+
+  async clearSaves(): Promise<void> {
     savesStore = [];
   },
 
