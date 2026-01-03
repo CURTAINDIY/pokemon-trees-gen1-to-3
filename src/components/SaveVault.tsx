@@ -15,10 +15,10 @@ export function SaveVault(props: { onSelectSaveId?: (id: string) => void }) {
 
   const selected = useMemo(() => rows.find(r => r.id === selectedId), [rows, selectedId]);
   
-  // Filter rows to hide save_sav files unless showHiddenSaves is true
+  // Filter rows to hide save_* UUID cache files unless showHiddenSaves is true
   const visibleRows = useMemo(() => {
     if (showHiddenSaves) return rows;
-    return rows.filter(r => !r.filename.startsWith("save_sav_"));
+    return rows.filter(r => !r.filename.startsWith("save_"));
   }, [rows, showHiddenSaves]);
 
   async function refresh() {
