@@ -1,8 +1,8 @@
 // src/stores/professorsPcStore.ts
 
 import { idb, type ProfessorMonRow } from "../db/idb";
-import { extractGen1BoxMons } from "../lib/gen1/gen1";
-import { extractGen2BoxMons } from "../lib/gen2/gen2";
+import { extractGen1BoxMons, detectGen1Save } from "../lib/gen1/gen1";
+import { extractGen2BoxMons, detectGen2Save } from "../lib/gen2/gen2";
 import { extractGen3BoxMons } from "../lib/gen3/gen3";
 import { convertGen1BoxMonToPk3, convertGen2BoxMonToPk3 } from "../lib/transporter/gb_to_pk3";
 import { convertGen3BoxMonToPk3 } from "../lib/transporter/gba_to_pk3";
@@ -94,27 +94,58 @@ export async function importSaveToProfessorPc(saveBytes: Uint8Array, label: stri
 
   // If not gen3, try GB/GBC saves
   if (rawMons.length === 0) {
-    // Try Gen 2 first (more specific detection)
-    try {
-      const gen2 = extractGen2BoxMons(saveBytes);
-      if (gen2.length > 0) {
-        rawMons = gen2.map(convertGen2BoxMonToPk3);
-        sourceGen = "gen2";
-      }
-    } catch {
-      // ignore
-    }
+    // Detect save type BEFORE extraction to avoid parsing wrong format
+    const isGen1 = detectGen1Save(saveBytes);
+    const isGen2 = detectGen2Save(saveBytes);
     
-    // If still nothing, try Gen 1
-    if (rawMons.length === 0) {
+    console.log(`[Professor PC Import] Detection: Gen1=${isGen1}, Gen2=${isGen2}`);
+    
+    // Extract based on detected save type
+    if (isGen1 && !isGen2) {
+      // Definitely Gen 1
       try {
         const gen1 = extractGen1BoxMons(saveBytes);
         if (gen1.length > 0) {
           rawMons = gen1.map(convertGen1BoxMonToPk3);
           sourceGen = "gen1";
         }
+      } catch (err) {
+        console.error("[Professor PC Import] Gen1 extraction failed:", err);
+      }
+    } else if (isGen2) {
+      // Gen 2 (prefer Gen 2 if both detected, as Gen 2 is more specific)
+      try {
+        const gen2 = extractGen2BoxMons(saveBytes);
+        if (gen2.length > 0) {
+          rawMons = gen2.map(convertGen2BoxMonToPk3);
+          sourceGen = "gen2";
+        }
+      } catch (err) {
+        console.error("[Professor PC Import] Gen2 extraction failed:", err);
+      }
+    } else if (!isGen1 && !isGen2) {
+      // Neither detected - try both as fallback (old behavior)
+      console.warn("[Professor PC Import] No generation detected, trying fallback extraction");
+      try {
+        const gen2 = extractGen2BoxMons(saveBytes);
+        if (gen2.length > 0) {
+          rawMons = gen2.map(convertGen2BoxMonToPk3);
+          sourceGen = "gen2";
+        }
       } catch {
         // ignore
+      }
+      
+      if (rawMons.length === 0) {
+        try {
+          const gen1 = extractGen1BoxMons(saveBytes);
+          if (gen1.length > 0) {
+            rawMons = gen1.map(convertGen1BoxMonToPk3);
+            sourceGen = "gen1";
+          }
+        } catch {
+          // ignore
+        }
       }
     }
   } else {
