@@ -50,18 +50,21 @@ const MON_SIZE = 33;
 
 export function detectGen1Save(raw: Uint8Array): boolean {
   const data = normalizeGen1Save(raw);
-  if (data.length !== 0x8000) return false;
+  if (data.length !== 0x8000) {
+    console.log(`[Gen1 Detection] Invalid size: ${data.length}`);
+    return false;
+  }
 
   // Check main data checksum
   const storedChecksum = data[GEN1_CHECKSUM_LOC];
   const calculatedChecksum = computeGen1Checksum(data, 0x2598, 0x3523);
   
-  if (storedChecksum !== calculatedChecksum) {
-    // Checksum mismatch, but let's do more checks
-  }
+  console.log(`[Gen1 Detection] Checksum - stored: 0x${storedChecksum.toString(16)}, calculated: 0x${calculatedChecksum.toString(16)}`);
 
   // Check for valid player name (should be terminated with 0x50 or contain valid Gen1 text chars)
   const playerNameRegion = data.slice(GEN1_PLAYER_NAME_LOC, GEN1_PLAYER_NAME_LOC + 11);
+  console.log(`[Gen1 Detection] Player name bytes:`, Array.from(playerNameRegion).map(b => `0x${b.toString(16).padStart(2, '0')}`).join(' '));
+  
   let hasValidNameChar = false;
   for (let i = 0; i < playerNameRegion.length; i++) {
     const c = playerNameRegion[i];
@@ -73,18 +76,30 @@ export function detectGen1Save(raw: Uint8Array): boolean {
     }
   }
 
-  if (!hasValidNameChar) return false;
+  console.log(`[Gen1 Detection] Valid name char found: ${hasValidNameChar}`);
 
   // Look for PC box structures at known Gen1 locations
   // Gen 1 has boxes in two banks: 0x4000 and 0x6000
   const boxLocations = [0x4000, 0x6000];
   
+  let foundValidBox = false;
   for (const loc of boxLocations) {
-    if (looksLikeGen1Box(data, loc)) {
-      return true;
+    const isValid = looksLikeGen1Box(data, loc);
+    console.log(`[Gen1 Detection] Box at 0x${loc.toString(16)}: ${isValid ? 'VALID' : 'invalid'}`);
+    if (isValid) {
+      foundValidBox = true;
+      break;
     }
   }
 
+  // Accept as Gen1 if we found valid box structures, even if player name check failed
+  // (Some saves might have corrupted name region but valid Pokemon data)
+  if (foundValidBox) {
+    console.log(`[Gen1 Detection] ✅ Detected as Gen 1 save (box structure valid)`);
+    return true;
+  }
+
+  console.log(`[Gen1 Detection] ❌ Not detected as Gen 1 save`);
   return false;
 }
 
