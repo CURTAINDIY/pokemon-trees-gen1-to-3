@@ -23,6 +23,9 @@ jobs:
         with:
           clean: true
       
+      - name: Clear npm cache
+        run: npm cache clean --force
+      
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
