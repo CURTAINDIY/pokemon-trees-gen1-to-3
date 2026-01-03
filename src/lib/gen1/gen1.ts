@@ -132,10 +132,22 @@ export function extractGen1BoxMons(raw: Uint8Array): Gen1BoxMon[] {
 
   const mons: Gen1BoxMon[] = [];
   
-  // Extract from both box banks (6 boxes each)
+  // Gen 1 has 12 boxes across two banks:
+  // Bank 1 (Boxes 1-6): 0x2000 base
+  // Bank 2 (Boxes 7-12): 0x6000 base  
+  // Current box: 0x4000 (already in one of the banks, so may be duplicate)
+  console.log("\n=== Gen 1 Box Extraction ===");
+  
   const boxBases = [
-    0x4000, // Current box
-    0x6000, // Box 1-6
+    // Bank 1: Boxes 1-6 at 0x2000
+    0x2000,
+    0x2000 + BOX_SIZE * 1,
+    0x2000 + BOX_SIZE * 2,
+    0x2000 + BOX_SIZE * 3,
+    0x2000 + BOX_SIZE * 4,
+    0x2000 + BOX_SIZE * 5,
+    // Bank 2: Boxes 7-12 at 0x6000
+    0x6000,
     0x6000 + BOX_SIZE * 1,
     0x6000 + BOX_SIZE * 2,
     0x6000 + BOX_SIZE * 3,
@@ -143,12 +155,20 @@ export function extractGen1BoxMons(raw: Uint8Array): Gen1BoxMon[] {
     0x6000 + BOX_SIZE * 5,
   ];
 
-  for (const base of boxBases) {
-    if (base + BOX_SIZE > data.length) continue;
+  for (let i = 0; i < boxBases.length; i++) {
+    const base = boxBases[i];
+    if (base + BOX_SIZE > data.length) {
+      console.log(`Box ${i + 1} at offset 0x${base.toString(16)} exceeds save size, skipping`);
+      continue;
+    }
     
     const boxMons = parseGen1Box(data, base);
+    console.log(`Box ${i + 1} at 0x${base.toString(16)}: extracted ${boxMons.length} Pokemon`);
     mons.push(...boxMons);
   }
+  
+  console.log(`Total Gen 1 Pokemon extracted: ${mons.length}`);
+  console.log("============================\n");
 
   return mons;
 }
