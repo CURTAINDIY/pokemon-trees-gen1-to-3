@@ -166,10 +166,8 @@ export function extractGen1BoxMons(raw: Uint8Array): Gen1BoxMon[] {
     
     const boxMons = parseGen1Box(data, offset, label);
     if (boxMons.length > 0) {
-      console.log(`${label}: extracted ${boxMons.length} Pokemon`);
+      console.log(`${label} (0x${offset.toString(16)}): extracted ${boxMons.length} Pokemon - ${boxMons.map(m => `${m.natDex} Lv${m.level}`).join(', ')}`);
       mons.push(...boxMons);
-    } else {
-      console.log(`${label}: empty`);
     }
   }
   
