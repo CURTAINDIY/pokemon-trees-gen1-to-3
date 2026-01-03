@@ -133,26 +133,43 @@ export function extractGen1BoxMons(raw: Uint8Array): Gen1BoxMon[] {
   const mons: Gen1BoxMon[] = [];
   
   // Gen 1 save structure:
-  // - Current box NUMBER is stored at 0x284A (0-11 for boxes 1-12)
-  // - Current box DATA is ALWAYS at 0x4000 (regardless of which box it is)
-  // - The byte at 0x284A just tells you which box number this represents
+  // - 0x284A = Current box number (0-11 for boxes 1-12)
+  // - 0x4000 = Current box data (copy of whichever box is selected)
+  // - 0x6000 = Permanent storage for boxes 1-6 (0x462 bytes each)
+  //
+  // We extract from BOTH locations to get all Pokemon:
+  // - Current box at 0x4000 (may be a duplicate of one at 0x6000)
+  // - All permanent boxes at 0x6000+
   
   console.log("\n=== Gen 1 Box Extraction ===");
   
-  // Read current box number (0-11 representing boxes 1-12) for display purposes
   const currentBoxNum = data[0x284A];
-  console.log(`Current box number byte at 0x284A: ${currentBoxNum} (Box ${currentBoxNum + 1})`);
+  console.log(`Current box selected: Box ${currentBoxNum + 1}`);
   
-  // Always read from 0x4000 - that's where the current box data is stored
-  const currentBoxOffset = 0x4000;
-  console.log(`Reading current box data from 0x${currentBoxOffset.toString(16)}...`);
-  
-  if (currentBoxOffset + BOX_SIZE <= data.length) {
-    const boxMons = parseGen1Box(data, currentBoxOffset);
-    console.log(`Current box (Box ${currentBoxNum + 1}): extracted ${boxMons.length} Pokemon`);
-    mons.push(...boxMons);
-  } else {
-    console.log("Current box offset exceeds save size");
+  // Extract from all box locations
+  const boxBases = [
+    { offset: 0x4000, label: "Current box" },
+    { offset: 0x6000, label: "Box 1" },
+    { offset: 0x6000 + BOX_SIZE * 1, label: "Box 2" },
+    { offset: 0x6000 + BOX_SIZE * 2, label: "Box 3" },
+    { offset: 0x6000 + BOX_SIZE * 3, label: "Box 4" },
+    { offset: 0x6000 + BOX_SIZE * 4, label: "Box 5" },
+    { offset: 0x6000 + BOX_SIZE * 5, label: "Box 6" },
+  ];
+
+  for (const { offset, label } of boxBases) {
+    if (offset + BOX_SIZE > data.length) {
+      console.log(`${label}: skipped (exceeds save size)`);
+      continue;
+    }
+    
+    const boxMons = parseGen1Box(data, offset, label);
+    if (boxMons.length > 0) {
+      console.log(`${label}: extracted ${boxMons.length} Pokemon`);
+      mons.push(...boxMons);
+    } else {
+      console.log(`${label}: empty`);
+    }
   }
   
   console.log(`Total Gen 1 Pokemon extracted: ${mons.length}`);
@@ -161,30 +178,24 @@ export function extractGen1BoxMons(raw: Uint8Array): Gen1BoxMon[] {
   return mons;
 }
 
-function parseGen1Box(data: Uint8Array, base: number): Gen1BoxMon[] {
+function parseGen1Box(data: Uint8Array, base: number, label?: string): Gen1BoxMon[] {
   const mons: Gen1BoxMon[] = [];
   const count = data[base + BOX_COUNT_OFF];
   
-  console.log(`  Box count byte: ${count} at offset 0x${(base + BOX_COUNT_OFF).toString(16)}`);
-  
   if (count > 20) {
-    console.log(`  ⚠️ Invalid count (>20), returning empty`);
+    if (label) console.log(`  ${label}: Invalid count (${count}>20), skipping`);
     return mons;
   }
   
   if (count === 0) {
-    console.log(`  Box is empty (count=0)`);
-    return mons;
+    return mons; // Empty box, no log needed
   }
 
-  console.log(`  Reading species list...`);
   for (let i = 0; i < count; i++) {
     const speciesIndex = data[base + BOX_SPECIES_OFF + i];
-    console.log(`    Slot ${i + 1}: species index = ${speciesIndex} (0x${speciesIndex.toString(16).padStart(2, '0')})`);
     
     if (speciesIndex === 0 || speciesIndex === 0xFF) {
-      console.log(`      Skipping (empty/terminator)`);
-      continue;
+      continue; // Empty slot
     }
 
     const monOff = base + BOX_MONS_OFF + i * MON_SIZE;
@@ -212,11 +223,8 @@ function parseGen1Box(data: Uint8Array, base: number): Gen1BoxMon[] {
     const natDex = gen1IndexToNatDex[speciesIndex];
     
     if (natDex === 0 || natDex === undefined) {
-      console.log(`      ⚠️ Unknown species index ${speciesIndex}, skipping`);
-      continue;
+      continue; // Unknown species, skip
     }
-    
-    console.log(`      ✓ Valid Pokemon: NatDex #${natDex}, Level ${level}, OT ID ${otId16}`);
 
     mons.push({
       raw33,
