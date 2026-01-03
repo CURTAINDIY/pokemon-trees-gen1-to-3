@@ -1,263 +1,147 @@
-import { useState, useEffect } from 'react';
-import { savesStore } from '../stores/savesStore';
-import { professorsPcStore } from '../stores/professorsPcStore';
-import { SaveMetadata } from '../types/vault';
-import { detectGeneration, detectSystemFromSaveSize } from '../lib/saveDetector';
-import { computeFingerprint } from '../lib/binary/fingerprint';
-import { uuid } from '../lib/binary/uuid';
-import { extractFromGen1, getGen1GameName } from '../lib/gen1/gen1';
-import { extractFromGen2, getGen2GameName } from '../lib/gen2/gen2';
-import { extractFromGen3, getGen3GameName } from '../lib/gen3/gen3';
-import { convertGen1ToPk3, convertGen2ToPk3 } from '../lib/transporter/gb_to_pk3';
-import { convertGen3ToPk3 } from '../lib/transporter/gba_to_pk3';
+import React, { useEffect, useMemo, useState } from "react";
+import { SavedFileRow } from "../db/idb";
+import { savesStore } from "../stores/savesStore";
+import { downloadBytes } from "../lib/binary/download";
+import { GEN3_SAVE_SIZE } from "../lib/gen3/gen3";
+import { GEN1_SAVE_SIZE } from "../lib/gen1/gen1";
+import { GEN2_SAVE_SIZE } from "../lib/gen2/gen2";
+import { professorsPcStore } from "../stores/professorsPcStore";
 
-function SaveVault() {
-  const [saves, setSaves] = useState<SaveMetadata[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState<string>('');
+export function SaveVault(props: { onSelectSaveId?: (id: string) => void }) {
+  const [rows, setRows] = useState<SavedFileRow[]>([]);
+  const [selectedId, setSelectedId] = useState<string>("");
+  const [status, setStatus] = useState<string>("");
 
-  useEffect(() => {
-    loadSaves();
-  }, []);
+  const selected = useMemo(() => rows.find(r => r.id === selectedId), [rows, selectedId]);
 
-  const loadSaves = async () => {
-    try {
-      const allSaves = await savesStore.getAllSaves();
-      setSaves(allSaves.sort((a, b) => b.uploadedAt - a.uploadedAt));
-    } catch (err) {
-      setError('Failed to load saves');
-      console.error(err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  async function refresh() {
+    const all = await savesStore.list();
+    setRows(all);
+  }
 
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    if (!files || files.length === 0) return;
+  useEffect(() => { void refresh(); }, []);
 
-    setIsUploading(true);
-    setError(null);
-    setUploadProgress('');
+  async function onImport(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    e.target.value = "";
+    if (!f) return;
 
     try {
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        setUploadProgress(`Processing ${i + 1}/${files.length}: ${file.name}`);
-
-        const arrayBuffer = await file.arrayBuffer();
-        const data = new Uint8Array(arrayBuffer);
-
-        // Detect generation and system
-        const generation = detectGeneration(data);
-        const system = detectSystemFromSaveSize(data.byteLength);
-        const fingerprint = await computeFingerprint(data);
-        
-        // Get game name
-        let game = 'Unknown';
-        try {
-          if (generation === 1) {
-            game = getGen1GameName(data);
-          } else if (generation === 2) {
-            game = getGen2GameName(data);
-          } else if (generation === 3) {
-            game = getGen3GameName(data);
-          }
-        } catch (err) {
-          console.warn('Could not detect game name:', err);
-        }
-
-        // Check for duplicates
-        const existing = saves.find(s => s.fingerprint === fingerprint);
-        if (existing) {
-          console.log(`Skipping duplicate: ${file.name} (matches ${existing.name})`);
-          continue;
-        }
-
-        // Add to store
-        const saveId = uuid();
-        const metadata = await savesStore.addSave(
-          saveId,
-          file.name,
-          file.name,
-          data,
-          {
-            system,
-            generation,
-            game,
-            fingerprint,
-          }
-        );
-
-        setSaves(prev => [metadata, ...prev]);
-      }
-
-      setUploadProgress(`Successfully uploaded ${files.length} save(s)`);
+      const row = await savesStore.importSave(f);
+      setStatus(`Imported: ${row.filename}`);
+      await refresh();
+      setSelectedId(row.id);
+      props.onSelectSaveId?.(row.id);
     } catch (err) {
-      setError(`Failed to upload: ${err instanceof Error ? err.message : 'Unknown error'}`);
-      console.error(err);
-    } finally {
-      setIsUploading(false);
-      // Clear file input
-      event.target.value = '';
+      setStatus(`Import failed: ${(err as Error).message}`);
     }
-  };
+  }
 
-  const handleExtractPokemon = async (save: SaveMetadata) => {
-    if (!save.generation || !save.id) {
-      setError('Invalid save file');
+  function onSelect(id: string) {
+    setSelectedId(id);
+    props.onSelectSaveId?.(id);
+    setStatus("");
+  }
+
+  function exportOriginal() {
+    if (!selected) return;
+    const expectedLen =
+      selected.kind === "gen3" ? GEN3_SAVE_SIZE :
+      selected.kind === "gen2" ? GEN2_SAVE_SIZE :
+      GEN1_SAVE_SIZE;
+    downloadBytes(selected.bytes, selected.filename, { expectedLen });
+  }
+
+  function showDebug() {
+    if (!selected) return;
+    if (selected.kind !== "gen3") {
+      alert("Debug report is only implemented for Gen 3 saves right now.");
       return;
     }
+    console.log("Save bytes:", selected.bytes);
+    alert("Debug report printed to console.");
+  }
 
-    setIsUploading(true);
-    setError(null);
-    setUploadProgress(`Extracting Pokemon from ${save.name}...`);
-
+  async function cloneToProfessorsPc() {
+    if (!selected) return;
     try {
-      const data = await savesStore.getSaveData(save.id);
-      if (!data) {
-        throw new Error('Failed to load save data');
-      }
-
-      let extracted: any[] = [];
-
-      if (save.generation === 1) {
-        const party = extractFromGen1(data, 'party');
-        const box = extractFromGen1(data, 'box');
-        extracted = [...party, ...box];
-      } else if (save.generation === 2) {
-        const party = extractFromGen2(data, 'party');
-        const box = extractFromGen2(data, 'box');
-        extracted = [...party, ...box];
-      } else if (save.generation === 3) {
-        extracted = extractFromGen3(data);
-      }
-
-      setUploadProgress(`Converting ${extracted.length} Pokemon...`);
-
-      // Convert to PK3 format and add to Professor's PC
-      for (let i = 0; i < extracted.length; i++) {
-        const mon = extracted[i];
-        
-        let vaultMon;
-        if (save.generation === 1) {
-          vaultMon = convertGen1ToPk3(mon, save.game || 'Red');
-        } else if (save.generation === 2) {
-          vaultMon = convertGen2ToPk3(mon, save.game || 'Gold');
-        } else {
-          vaultMon = convertGen3ToPk3(mon);
-        }
-
-        await professorsPcStore.addPokemon(vaultMon);
-      }
-
-      setUploadProgress(`✓ Successfully extracted ${extracted.length} Pokemon!`);
-      setTimeout(() => setUploadProgress(''), 3000);
+      const stats = await professorsPcStore.importFromSave(selected.kind, selected.id, selected.bytes);
+      const parts: string[] = [];
+      parts.push(`added ${stats.added}`);
+      if (stats.skippedDuplicates) parts.push(`skipped ${stats.skippedDuplicates} duplicates`);
+      setStatus(`Cloned boxed mons into Professor’s PC (${selected.kind.toUpperCase()}): ${parts.join(", ")}.`);
     } catch (err) {
-      setError(`Failed to extract: ${err instanceof Error ? err.message : 'Unknown error'}`);
-      console.error(err);
-    } finally {
-      setIsUploading(false);
+      setStatus(`Clone failed: ${(err as Error).message}`);
     }
-  };
+  }
 
-  const handleDeleteSave = async (saveId: string) => {
-    if (!confirm('Are you sure you want to delete this save?')) {
-      return;
-    }
+  async function deleteSelectedSave() {
+    if (!selected) return;
+    if (!confirm(`Delete save from vault?
 
+${selected.filename}`)) return;
     try {
-      await savesStore.deleteSave(saveId);
-      setSaves(prev => prev.filter(s => s.id !== saveId));
+      await savesStore.delete(selected.id);
+      setStatus(`Deleted: ${selected.filename}`);
+      setSelectedId("");
+      props.onSelectSaveId?.("");
+      await refresh();
     } catch (err) {
-      setError('Failed to delete save');
-      console.error(err);
+      setStatus(`Delete failed: ${(err as Error).message}`);
     }
-  };
-
-  if (isLoading) {
-    return <div className="loading">Loading saves...</div>;
   }
 
   return (
-    <div className="save-vault">
-      <div className="upload-section card">
-        <h2>Upload Save Files</h2>
-        <p>Upload Pokemon save files from Gen 1, 2, or 3 (.sav files)</p>
-        
-        <input
-          type="file"
-          accept=".sav,.gb,.gbc,.gba"
-          multiple
-          onChange={handleFileUpload}
-          disabled={isUploading}
-          id="file-upload"
-          style={{ display: 'none' }}
-        />
-        
-        <label htmlFor="file-upload" className="upload-area">
-          {isUploading ? (
-            <div>
-              <div className="spinner"></div>
-              <p>{uploadProgress}</p>
-            </div>
-          ) : (
-            <div>
-              <p>📁 Click to select save files</p>
-              <p className="small">Supports .sav files from GB, GBC, and GBA games</p>
-            </div>
-          )}
+    <div className="page">
+      <h2>Save Vault</h2>
+
+      <div className="row">
+        <label className="file">
+          <b>Import .sav (Gen 1/2/3)</b>{" "}
+          <input type="file" accept=".sav,application/octet-stream" onChange={onImport} />
         </label>
       </div>
 
-      {error && <div className="error">{error}</div>}
-      {uploadProgress && !isUploading && <div className="success">{uploadProgress}</div>}
+      {status && <p className="status">{status}</p>}
 
-      <div className="saves-list">
-        <h2>Your Saves ({saves.length})</h2>
-        
-        {saves.length === 0 ? (
-          <p className="empty-state">No saves uploaded yet. Upload your first save file above!</p>
-        ) : (
-          <div className="grid grid-2">
-            {saves.map(save => (
-              <div key={save.id} className="card save-card">
-                <div className="save-header">
-                  <h3>{save.name}</h3>
-                  <span className="badge">{save.system}</span>
-                </div>
-                
-                <div className="save-info">
-                  <p><strong>Game:</strong> {save.game || 'Unknown'}</p>
-                  <p><strong>Generation:</strong> {save.generation || 'Unknown'}</p>
-                  <p><strong>Size:</strong> {(save.size / 1024).toFixed(1)} KB</p>
-                  <p><strong>Uploaded:</strong> {new Date(save.uploadedAt).toLocaleDateString()}</p>
-                </div>
+      <hr />
 
-                <div className="save-actions">
-                  <button 
-                    onClick={() => handleExtractPokemon(save)}
-                    disabled={isUploading}
-                  >
-                    Extract Pokemon
-                  </button>
-                  <button 
-                    onClick={() => handleDeleteSave(save.id)}
-                    className="danger"
-                    disabled={isUploading}
-                  >
-                    Delete
-                  </button>
-                </div>
-              </div>
+      <div className="grid">
+        <div className="panel">
+          <b>Saved files</b>
+          <ul className="list">
+            {rows.map(r => (
+              <li key={r.id} className={r.id === selectedId ? "selected" : ""}>
+                <button onClick={() => onSelect(r.id)}>Select</button>{" "}
+                <span>
+                  {r.filename} <small style={{ opacity: 0.7 }}>({r.kind.toUpperCase()})</small>
+                </span>
+                <small> — {new Date(r.createdAt).toLocaleString()}</small>
+              </li>
             ))}
-          </div>
-        )}
+          </ul>
+        </div>
+
+        <div className="panel">
+          <b>Selected</b>
+          {selected ? (
+            <div className="stack">
+              <div><code>{selected.filename}</code></div>
+              <div>len: {selected.bytes.length}</div>
+              {selected.notes ? <div className="hint">Note: {selected.notes}</div> : null}
+
+              <div className="row wrap">
+                <button onClick={exportOriginal}>Export .sav</button>
+                <button onClick={() => void cloneToProfessorsPc()}>Clone Boxed → Professor’s PC</button>
+                <button onClick={showDebug}>Gen3 Debug</button>
+                <button className="danger" onClick={() => void deleteSelectedSave()}>Delete from Vault</button>
+              </div>
+            </div>
+          ) : (
+            <div className="hint">Select a save to export, debug, or clone boxed Pokémon.</div>
+          )}
+        </div>
       </div>
     </div>
   );
 }
-
-export default SaveVault;

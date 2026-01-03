@@ -1,212 +1,426 @@
-import { useState, useEffect } from 'react';
-import { professorsPcStore } from '../stores/professorsPcStore';
-import { VaultPokemon } from '../types/vault';
-import { SPECIES } from '../lib/dex/species';
+// src/components/ProfessorsPc.tsx
 
-function ProfessorsPc() {
-  const [pokemon, setPokemon] = useState<VaultPokemon[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [filter, setFilter] = useState<{
-    search: string;
-    generation: number | null;
-    shinyOnly: boolean;
-  }>({
-    search: '',
-    generation: null,
-    shinyOnly: false,
-  });
+import { useEffect, useMemo, useState } from "react";
+import type { ProfessorMonRow } from "../db/idb";
+import { idb } from "../db/idb";
+import { decodePk3 } from "../lib/gen3/pk3";
+import { speciesName } from "../lib/dex/dex";
+import { MOVES_GEN3 } from "../lib/dex/moves";
+import { ITEMS_GEN3 } from "../lib/dex/items";
+import { getLevelForSpeciesExp } from "../lib/dex/expGroups";
+import { deleteAllProfessorMons, deleteSelectedMons, importSaveToProfessorPc, repairProfessorMonMetadata, repairProfessorMonChecksums, repairBadEggIssues } from "../stores/professorsPcStore";
+import { diagnoseSave } from "../lib/gen3/diagnose_save";
+import { debugAzumarillBadEgg } from "../lib/gen3/debugAzumarill";
+
+function displayNameForRow(row: ProfessorMonRow): { 
+  displayName: string; 
+  displaySpecies: string;
+  warn: boolean; 
+  checksumOk: boolean;
+} {
+  // ALWAYS re-decode from raw80 to ensure we use the fixed decoder
+  const d = decodePk3(row.raw80);
+  const checksumOk = !!d.checksumOk;
+  const nick = d.nickname.trim();
+  const speciesId = d.speciesId; // Use fresh decode, not cached row.speciesId
+
+  // Debug log for mismatches
+  if (typeof window !== 'undefined' && row.speciesId && row.speciesId !== speciesId) {
+    console.warn(`[Display] Species mismatch for ${nick}:`, {
+      cachedSpecies: row.speciesId,
+      freshDecodeSpecies: speciesId,
+      nickname: nick,
+      pid: d.pid
+    });
+  }
+
+  // Show species name ONLY if checksum OK and valid range
+  const showSpecies = checksumOk && speciesId != null && speciesId >= 1 && speciesId <= 386;
+
+  const displayName = nick.length 
+    ? nick 
+    : showSpecies 
+      ? speciesName(speciesId!) 
+      : "???";
+  
+  const displaySpecies = showSpecies ? speciesName(speciesId!) : "—";
+  
+  return { 
+    displayName, 
+    displaySpecies,
+    warn: !showSpecies, 
+    checksumOk 
+  };
+}
+
+function getMoveName(moveId: number | undefined): string {
+  if (!moveId || moveId === 0) return "—";
+  return MOVES_GEN3[moveId] || `Move ${moveId}`;
+}
+
+function getItemName(itemId: number | undefined): string {
+  if (!itemId || itemId === 0) return "—";
+  return ITEMS_GEN3[itemId] || `Item ${itemId}`;
+}
+
+function formatIVs(row: ProfessorMonRow): string {
+  if (!row.checksumOk) return "—";
+  const ivs = [row.ivHp, row.ivAtk, row.ivDef, row.ivSpa, row.ivSpd, row.ivSpe];
+  if (ivs.some(v => v === undefined)) return "—";
+  return ivs.join("/");
+}
+
+function formatPokerus(row: ProfessorMonRow): string {
+  if (!row.checksumOk) return "—";
+  if (row.hasPokerus) return "🦠 Active";
+  if (row.hadPokerus) return "✓ Cured";
+  return "—";
+}
+
+function calculateDisplayLevel(row: ProfessorMonRow): number {
+  // Calculate actual level from experience for display
+  if (!row.checksumOk || !row.experience || !row.speciesId) {
+    return row.level ?? row.metLevel ?? 0;
+  }
+  
+  try {
+    return getLevelForSpeciesExp(row.speciesId, row.experience);
+  } catch {
+    return row.level ?? row.metLevel ?? 0;
+  }
+}
+
+interface ProfessorsPcProps {
+  selectedMonIds: string[];
+  onSelectMonIds: (ids: string[]) => void;
+}
+
+export default function ProfessorsPc({ selectedMonIds, onSelectMonIds }: ProfessorsPcProps) {
+  const [mons, setMons] = useState<ProfessorMonRow[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [status, setStatus] = useState<string>("");
+  const [showPokerusOnly, setShowPokerusOnly] = useState(false);
+
+  async function refresh() {
+    const rows = await idb.listMons();
+    // newest first
+    rows.sort((a, b) => b.createdAt - a.createdAt);
+    setMons(rows);
+  }
 
   useEffect(() => {
-    loadPokemon();
+    refresh().catch(() => {});
   }, []);
 
-  const loadPokemon = async () => {
-    try {
-      const all = await professorsPcStore.getAllPokemon();
-      setPokemon(all);
-    } catch (err) {
-      console.error('Failed to load Pokemon:', err);
-    } finally {
-      setIsLoading(false);
+  const view = useMemo(() => {
+    let filtered = mons;
+    
+    // Apply Pokerus filter if enabled
+    if (showPokerusOnly) {
+      filtered = filtered.filter(m => m.hasPokerus || m.hadPokerus);
     }
-  };
-
-  const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this Pokemon?')) {
-      return;
-    }
-
-    try {
-      await professorsPcStore.deletePokemon(id);
-      setPokemon(prev => prev.filter(p => p.id !== id));
-    } catch (err) {
-      console.error('Failed to delete Pokemon:', err);
-    }
-  };
-
-  const handleDownloadPK3 = (mon: VaultPokemon) => {
-    if (!mon.pk3) {
-      alert('No PK3 data available for this Pokemon');
-      return;
-    }
-
-    const blob = new Blob([mon.pk3], { type: 'application/octet-stream' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${mon.nickname || SPECIES[mon.natDex]?.name || 'Pokemon'}.pk3`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  };
-
-  const filteredPokemon = pokemon.filter(p => {
-    if (filter.search) {
-      const searchLower = filter.search.toLowerCase();
-      const speciesName = SPECIES[p.natDex]?.name.toLowerCase() || '';
-      const nickname = p.nickname.toLowerCase();
-      if (!speciesName.includes(searchLower) && !nickname.includes(searchLower)) {
-        return false;
+    
+    // Sort by National Dex number (speciesId), then by creation time
+    filtered = filtered.sort((a, b) => {
+      const aSpecies = a.speciesId || 9999;
+      const bSpecies = b.speciesId || 9999;
+      
+      if (aSpecies !== bSpecies) {
+        return aSpecies - bSpecies; // Sort by National Dex
       }
-    }
-    if (filter.generation !== null && p.sourceGen !== filter.generation) {
-      return false;
-    }
-    if (filter.shinyOnly && !p.isShiny) {
-      return false;
-    }
-    return true;
-  });
+      
+      return b.createdAt - a.createdAt; // If same species, newest first
+    });
+    
+    return filtered.map((m) => {
+      const disp = displayNameForRow(m);
+      return { ...m, disp };
+    });
+  }, [mons, showPokerusOnly]);
 
-  const counts = professorsPcStore.getCountByGeneration();
+  async function onImportSave(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    const bytes = new Uint8Array(await f.arrayBuffer());
 
-  if (isLoading) {
-    return <div className="loading">Loading Pokemon...</div>;
+    setBusy(true);
+    setStatus("");
+    try {
+      const stats = await importSaveToProfessorPc(bytes, f.name);
+      setStatus(`Imported ${stats.added} mons (seen=${stats.totalSeen}, duplicates=${stats.skippedDuplicates}).`);
+      await refresh();
+    } catch (err: any) {
+      setStatus(`Import failed: ${err?.message ?? String(err)}`);
+    } finally {
+      setBusy(false);
+      e.target.value = "";
+    }
+  }
+
+  async function onDeleteAll() {
+    if (!confirm("Delete ALL Pokémon from Professor's PC?")) return;
+    setBusy(true);
+    setStatus("");
+    try {
+      await deleteAllProfessorMons();
+      setStatus("Deleted all Professor's PC mons.");
+      onSelectMonIds([]);
+      await refresh();
+    } catch (err: any) {
+      setStatus(`Delete failed: ${err?.message ?? String(err)}`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onDeleteSelected() {
+    if (selectedMonIds.length === 0) {
+      setStatus("No Pokémon selected.");
+      return;
+    }
+    if (!confirm(`Delete ${selectedMonIds.length} selected Pokémon?`)) return;
+    setBusy(true);
+    setStatus("");
+    try {
+      await deleteSelectedMons(selectedMonIds);
+      setStatus(`Deleted ${selectedMonIds.length} selected Pokémon.`);
+      onSelectMonIds([]);
+      await refresh();
+    } catch (err: any) {
+      setStatus(`Delete failed: ${err?.message ?? String(err)}`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onRepair() {
+    setBusy(true);
+    setStatus("");
+    try {
+      await repairProfessorMonMetadata();
+      setStatus("Repaired cached metadata from raw pk3 data.");
+      await refresh();
+    } catch (err: any) {
+      setStatus(`Repair failed: ${err?.message ?? String(err)}`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onRepairChecksums() {
+    if (selectedMonIds.length === 0) {
+      setStatus("No Pokémon selected. Select Pokemon with bad checksums (⚠️) to repair.");
+      return;
+    }
+    if (!confirm(`Attempt to repair checksums for ${selectedMonIds.length} selected Pokémon?\n\nThis will recalculate checksums from the encrypted data.`)) return;
+    
+    setBusy(true);
+    setStatus("");
+    try {
+      const result = await repairProfessorMonChecksums(selectedMonIds);
+      setStatus(`✅ Checksum repair: ${result.repaired} repaired, ${result.failed} failed.`);
+      onSelectMonIds([]);
+      await refresh();
+    } catch (err: any) {
+      setStatus(`Repair failed: ${err?.message ?? String(err)}`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onDiagnoseSave(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    const bytes = new Uint8Array(await f.arrayBuffer());
+    
+    console.log("\n========================================");
+    console.log("SAVE FILE DIAGNOSTICS");
+    console.log("========================================");
+    diagnoseSave(bytes, 20); // Show first 20 Pokemon
+    setStatus("✅ Diagnostic output written to console (F12 → Console tab)");
+    
+    e.target.value = "";
+  }
+
+  async function onDebugAzumarill() {
+    setBusy(true);
+    setStatus("");
+    try {
+      await debugAzumarillBadEgg();
+      setStatus("✅ Azumarill debug analysis complete - check console (F12)");
+    } catch (err: any) {
+      setStatus(`Debug failed: ${err?.message ?? String(err)}`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onFixBadEgg() {
+    if (selectedMonIds.length === 0) {
+      setStatus("No Pokémon selected. Select Pokemon to fix Bad Egg issues.");
+      return;
+    }
+    if (!confirm(`Fix Bad Egg issues for ${selectedMonIds.length} selected Pokémon?\n\nThis will repair:\n- Invalid language codes\n- Met Level mismatches\n- Egg bit flags\n- Checksums`)) return;
+    
+    setBusy(true);
+    setStatus("");
+    try {
+      const result = await repairBadEggIssues(selectedMonIds);
+      setStatus(`✅ Fixed ${result.repaired} Pokemon (${result.languageFixed} language, ${result.metLevelFixed} met level, ${result.eggBitFixed} egg bit, ${result.checksumFixed} checksum). Failed: ${result.failed}`);
+      onSelectMonIds([]);
+      await refresh();
+    } catch (err: any) {
+      setStatus(`Fix failed: ${err?.message ?? String(err)}`);
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
-    <div className="professors-pc">
-      <div className="pc-header card">
-        <h2>Professor's PC</h2>
-        <div className="stats">
-          <div className="stat">
-            <span className="stat-label">Total</span>
-            <span className="stat-value">{pokemon.length}</span>
-          </div>
-          <div className="stat">
-            <span className="stat-label">Gen 1</span>
-            <span className="stat-value">{counts.gen1}</span>
-          </div>
-          <div className="stat">
-            <span className="stat-label">Gen 2</span>
-            <span className="stat-value">{counts.gen2}</span>
-          </div>
-          <div className="stat">
-            <span className="stat-label">Gen 3</span>
-            <span className="stat-value">{counts.gen3}</span>
-          </div>
-        </div>
-      </div>
+    <div style={{ padding: 16 }}>
+      <h2>Professor's PC</h2>
 
-      <div className="filters card">
-        <input
-          type="text"
-          placeholder="Search by name..."
-          value={filter.search}
-          onChange={e => setFilter({ ...filter, search: e.target.value })}
-          className="search-input"
-        />
-        
-        <select
-          value={filter.generation || ''}
-          onChange={e => setFilter({ ...filter, generation: e.target.value ? parseInt(e.target.value) : null })}
-        >
-          <option value="">All Generations</option>
-          <option value="1">Gen 1</option>
-          <option value="2">Gen 2</option>
-          <option value="3">Gen 3</option>
-        </select>
-
-        <label className="checkbox-label">
-          <input
-            type="checkbox"
-            checked={filter.shinyOnly}
-            onChange={e => setFilter({ ...filter, shinyOnly: e.target.checked })}
-          />
-          Shiny Only
+      <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 12 }}>
+        <label>
+          <input type="file" accept=".sav,.SAV" disabled={busy} onChange={onImportSave} />
         </label>
+        <label>
+          <input type="file" accept=".sav,.SAV" disabled={busy} onChange={onDiagnoseSave} style={{ display: 'none' }} id="diagnose-input" />
+          <button disabled={busy} onClick={() => document.getElementById('diagnose-input')?.click()} style={{ cursor: 'pointer' }}>
+            🔍 Diagnose Save
+          </button>
+        </label>
+        <button disabled={busy} onClick={onDebugAzumarill} style={{ cursor: 'pointer' }}>
+          🐛 Debug Azumarill
+        </button>
+        <button disabled={busy} onClick={onRepair}>
+          🔧 Repair Metadata
+        </button>
+        <button disabled={busy || selectedMonIds.length === 0} onClick={onRepairChecksums} style={{ cursor: selectedMonIds.length === 0 ? 'not-allowed' : 'pointer' }}>
+          🔧 Fix Checksums ({selectedMonIds.length})
+        </button>
+        <button disabled={busy || selectedMonIds.length === 0} onClick={onFixBadEgg} style={{ cursor: selectedMonIds.length === 0 ? 'not-allowed' : 'pointer', backgroundColor: '#ff6b6b', color: 'white', fontWeight: 'bold' }}>
+          🥚 Fix Bad Egg ({selectedMonIds.length})
+        </button>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <input 
+            type="checkbox" 
+            checked={showPokerusOnly} 
+            onChange={(e) => setShowPokerusOnly(e.target.checked)}
+            disabled={busy}
+          />
+          <span>🦠 Pokerus Only</span>
+        </label>
+        <button disabled={busy || selectedMonIds.length === 0} onClick={onDeleteSelected}>
+          🗑️ Delete Selected ({selectedMonIds.length})
+        </button>
+        <button disabled={busy} onClick={onDeleteAll}>
+          🗑️ Delete ALL
+        </button>
+        {busy ? <span>Working…</span> : null}
       </div>
 
-      {filteredPokemon.length === 0 ? (
-        <p className="empty-state">
-          {pokemon.length === 0 
-            ? 'No Pokemon in PC. Extract some from your saves!'
-            : 'No Pokemon match your filters.'}
-        </p>
-      ) : (
-        <div className="grid grid-3">
-          {filteredPokemon.map(mon => {
-            const species = SPECIES[mon.natDex];
+      {status ? <div style={{ marginBottom: 12 }}>{status}</div> : null}
+
+      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+        <thead>
+          <tr style={{ textAlign: "left", borderBottom: "2px solid #ddd", backgroundColor: "#f5f5f5" }}>
+            <th style={{ padding: 8, width: 40 }}>✓</th>
+            <th style={{ padding: 8, minWidth: 100 }}>Name</th>
+            <th style={{ padding: 8, minWidth: 80 }}>Species</th>
+            <th style={{ padding: 8, width: 90 }}>Exp</th>
+            <th style={{ padding: 8, minWidth: 120 }}>OT</th>
+            <th style={{ padding: 8, minWidth: 80 }}>Nature</th>
+            <th style={{ padding: 8, minWidth: 200 }}>Moves</th>
+            <th style={{ padding: 8, width: 80 }}>Item</th>
+            <th style={{ padding: 8, width: 60 }}>Pokerus</th>
+            <th style={{ padding: 8, width: 80 }}>Source Gen</th>
+          </tr>
+        </thead>
+        <tbody>
+          {view.map((m) => {
+            const isSelected = selectedMonIds.includes(m.id);
+            const moves = m.moves || [];
+            const movesDisplay = moves
+              .filter(id => id && id > 0)
+              .map(id => getMoveName(id))
+              .join(", ") || "—";
+            
             return (
-              <div key={mon.id} className="card pokemon-card">
-                <div className="pokemon-header">
-                  <h3>{mon.nickname || species?.name || `#${mon.natDex}`}</h3>
-                  {mon.isShiny && <span className="shiny-badge">✨</span>}
-                  <span className="level-badge">Lv. {mon.level}</span>
-                </div>
-
-                <div className="pokemon-info">
-                  {mon.nickname !== species?.name && (
-                    <p><strong>Species:</strong> {species?.name || `#${mon.natDex}`}</p>
-                  )}
-                  <p><strong>OT:</strong> {mon.ot}</p>
-                  <p><strong>Nature:</strong> {mon.nature || 'Unknown'}</p>
-                  <p><strong>Source:</strong> Gen {mon.sourceGen} {mon.sourceGame ? `(${mon.sourceGame})` : ''}</p>
-                </div>
-
-                <div className="pokemon-stats">
-                  <div className="stat-row">
-                    <span>HP</span>
-                    <span>{mon.hp}</span>
-                  </div>
-                  <div className="stat-row">
-                    <span>Attack</span>
-                    <span>{mon.attack}</span>
-                  </div>
-                  <div className="stat-row">
-                    <span>Defense</span>
-                    <span>{mon.defense}</span>
-                  </div>
-                  <div className="stat-row">
-                    <span>Sp.Atk</span>
-                    <span>{mon.spAttack}</span>
-                  </div>
-                  <div className="stat-row">
-                    <span>Sp.Def</span>
-                    <span>{mon.spDefense}</span>
-                  </div>
-                  <div className="stat-row">
-                    <span>Speed</span>
-                    <span>{mon.speed}</span>
-                  </div>
-                </div>
-
-                <div className="pokemon-actions">
-                  <button onClick={() => handleDownloadPK3(mon)}>
-                    Download .pk3
-                  </button>
-                  <button onClick={() => handleDelete(mon.id)} className="danger">
-                    Delete
-                  </button>
-                </div>
-              </div>
+              <tr key={m.id} style={{ 
+                borderBottom: "1px solid #f0f0f0",
+                backgroundColor: isSelected ? "#e3f2fd" : undefined 
+              }}>
+                <td style={{ padding: 8 }}>
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onChange={() => {
+                      if (isSelected) {
+                        onSelectMonIds(selectedMonIds.filter((id) => id !== m.id));
+                      } else {
+                        onSelectMonIds([...selectedMonIds, m.id]);
+                      }
+                    }}
+                  />
+                </td>
+                <td style={{ padding: 8 }}>
+                  <span style={{ fontWeight: 600 }}>
+                    {m.disp.displayName}
+                    {m.disp.warn ? " ⚠️" : ""}
+                    {m.isShiny ? " ✨" : ""}
+                  </span>
+                </td>
+                <td style={{ padding: 8 }}>
+                  {m.disp.displaySpecies}
+                </td>
+                <td style={{ padding: 8, fontFamily: "monospace", fontSize: 11 }}>
+                  {m.experience?.toLocaleString() || "—"}
+                </td>
+                <td style={{ padding: 8 }}>
+                  {m.otName || "—"}
+                  <span style={{ fontSize: 11, opacity: 0.7, marginLeft: 4 }}>
+                    ({m.trainerId ?? "?"})
+                  </span>
+                </td>
+                <td style={{ padding: 8 }}>
+                  {m.natureName || "—"}
+                </td>
+                <td style={{ padding: 8, fontSize: 11 }}>
+                  {movesDisplay}
+                </td>
+                <td style={{ padding: 8, fontSize: 11 }}>
+                  {getItemName(m.heldItem)}
+                </td>
+                <td style={{ padding: 8, fontSize: 11, textAlign: "center" }}>
+                  {formatPokerus(m)}
+                </td>
+                <td style={{ padding: 8, fontSize: 11, textAlign: "center" }}>
+                  {m.sourceGen ? m.sourceGen.toUpperCase().replace("GEN", "Gen ") : "—"}
+                </td>
+              </tr>
             );
           })}
-        </div>
-      )}
+        </tbody>
+      </table>
+
+      <div style={{ marginTop: 12, fontSize: 12, opacity: 0.8 }}>
+        <p style={{ margin: "4px 0" }}>
+          <strong>Tip:</strong> ⚠️ indicates checksum failed or species out of range. 
+          Use "Repair Metadata" to refresh cached data after importing new saves.
+        </p>
+        <p style={{ margin: "4px 0" }}>
+          <strong>Duplicate Detection:</strong> Pokemon are deduplicated based on exact binary data (SHA-256 hash).
+          Clones from the same save are automatically filtered.
+        </p>
+        <p style={{ margin: "4px 0" }}>
+          <strong>Pokerus:</strong> 🦠 Active = currently has Pokerus | ✓ Cured = was cured of Pokerus
+        </p>
+        <p style={{ margin: "4px 0" }}>
+          <strong>Source Gen:</strong> Shows which generation the Pokemon originated from.
+          Injection rules: Gen 1 → Gen 1/2/3 | Gen 2 → Gen 2/3 | Gen 3 → Gen 3
+        </p>
+      </div>
     </div>
   );
 }
-
-export default ProfessorsPc;

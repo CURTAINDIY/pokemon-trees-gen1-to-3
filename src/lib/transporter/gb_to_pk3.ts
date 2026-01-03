@@ -7,14 +7,6 @@ import { sanitizeMoveset } from '../dex/moveLegality';
 import { speciesName } from '../dex/dex';
 import { convertGen2ItemToGen3 } from './itemMapping';
 
-const NATURES = [
-  'Hardy', 'Lonely', 'Brave', 'Adamant', 'Naughty',
-  'Bold', 'Docile', 'Relaxed', 'Impish', 'Lax',
-  'Timid', 'Hasty', 'Serious', 'Jolly', 'Naive',
-  'Modest', 'Mild', 'Quiet', 'Bashful', 'Rash',
-  'Calm', 'Gentle', 'Sassy', 'Careful', 'Quirky'
-];
-
 function lcrgNext(seed: number): number {
   return ((seed * 0x41C64E6D) + 0x6073) >>> 0;
 }
