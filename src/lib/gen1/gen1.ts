@@ -133,20 +133,25 @@ export function extractGen1BoxMons(raw: Uint8Array): Gen1BoxMon[] {
   const mons: Gen1BoxMon[] = [];
   
   // Gen 1 save structure:
+  // - 0x30C0: Current box (the box you have open in-game, 0x462 bytes)
   // - 0x284A: Current box number (0-11 for boxes 1-12)
   // - 0x4000-0x5FFF: SRAM Bank 0 (boxes 1-6, but bank-switched)
   // - 0x6000-0x7FFF: SRAM Bank 1 (boxes 7-12, but bank-switched)
   // 
-  // IMPORTANT: Gen 1 uses bank-switched SRAM. Only certain boxes are available
-  // in the save file at any given time. We scan all potential box locations
-  // and extract any that have valid data (count > 0 and <= 20).
+  // IMPORTANT: Gen 1 uses bank-switched SRAM. The currently selected box
+  // is stored at 0x30C0, NOT in the SRAM banks. We must extract from both
+  // the current box AND all SRAM bank locations.
   
   console.log("\n=== Gen 1 Box Extraction ===");
   
   const currentBoxNum = data[0x284A];
   console.log(`Current box selected: Box ${currentBoxNum + 1}`);
   
-  // Scan all potential box locations in both SRAM banks
+  // First, extract the current box (the one selected in-game)
+  const currentBoxMons = parseGen1Box(data, 0x30C0, `Current Box (Box ${currentBoxNum + 1})`);
+  mons.push(...currentBoxMons);
+  
+  // Then scan all potential box locations in both SRAM banks
   const boxBases = [
     { offset: 0x4000, label: "SRAM Bank 0 - Box 1" },
     { offset: 0x4000 + BOX_SIZE * 1, label: "SRAM Bank 0 - Box 2" },
