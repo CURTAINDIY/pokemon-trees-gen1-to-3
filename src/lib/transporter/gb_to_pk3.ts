@@ -206,6 +206,7 @@ export function convertGen1BoxMonToPk3(mon: Gen1BoxMon): Uint8Array {
   // CRITICAL: Convert Gen 1 move indices to Gen 3 move indices
   // Gen 1 stored moves in different internal order than Gen 3
   const gen3Moves = convertGen1MovesToGen3(mon.moves);
+  console.log(`[MOVE DEBUG] Before sanitize - Species #${natDexNum}: Gen1 moves=[${mon.moves}] → Gen3 moves=[${gen3Moves}]`);
   
   // Sanitize moves according to PCCS ORIGINAL method
   const { moves: cleanedMoves, ppUps: _cleanedPPUps } = sanitizeMoveset(
@@ -213,6 +214,7 @@ export function convertGen1BoxMonToPk3(mon: Gen1BoxMon): Uint8Array {
     gen3Moves,
     ppUps
   );
+  console.log(`[MOVE DEBUG] After sanitize - Species #${natDexNum}: moves=[${cleanedMoves}]`);
 
   // Use extracted nickname if available, otherwise fall back to species name
   const nickname = mon.nickname || speciesName(natDexNum);
