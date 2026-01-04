@@ -7,6 +7,7 @@ import { sanitizeMoveset } from '../dex/moveLegality';
 import { speciesName, NATURES } from '../dex/dex';
 import { convertGen2ItemToGen3 } from './itemMapping';
 import { convertGen1MovesToGen3, convertGen2MovesToGen3 } from './moveIndexMapping';
+import { natDexToGen3Index } from '../gen3/gen3_index_to_natdex';
 
 function lcrgNext(seed: number): number {
   return ((seed * 0x41C64E6D) + 0x6073) >>> 0;
@@ -169,10 +170,16 @@ export function convertGen1BoxMonToPk3(mon: Gen1BoxMon): Uint8Array {
     spd: spaDV * 2, // Gen 1/2 only have Special, use for both SpA and SpD
   };
 
-  const speciesId = mon.natDex > 0 ? mon.natDex : mon.speciesIndex;
-  if (speciesId === 0 || speciesId > 386) {
+  // Convert National Dex number to Gen 3 internal species index
+  const natDexNum = mon.natDex > 0 ? mon.natDex : mon.speciesIndex;
+  if (natDexNum === 0 || natDexNum > 386) {
     throw new Error(`Cannot convert Gen1 species index ${mon.speciesIndex} - invalid National Dex ID`);
   }
+  
+  // CRITICAL: Convert National Dex to Gen 3 internal index
+  // Gen 3 uses different internal indices (especially for Hoenn Pokemon)
+  const gen3SpeciesIndex = natDexToGen3Index(natDexNum);
+  console.log(`Gen1→PK3: NatDex #${natDexNum} (${speciesName(natDexNum)}) → Gen3 Index ${gen3SpeciesIndex}`);
 
   // Check if Pokemon was shiny in Gen 2 (Gen 1 doesn't have shinies, but uses same DV calculation)
   const isShiny = isGen2Shiny(mon.dvs);
@@ -185,7 +192,7 @@ export function convertGen1BoxMonToPk3(mon: Gen1BoxMon): Uint8Array {
   const pid = isShiny ? generateShinyPID(nature, trainerId) : generateMethod1PID(nature);
   
   const natureName = NATURES[nature] ?? 'Unknown';
-  console.log(`Gen1→PK3: Species ${speciesId}, Nature: ${natureName}, PID: 0x${pid.toString(16).toUpperCase()}${isShiny ? ' ✨ SHINY' : ''}`);
+  console.log(`Gen1→PK3: Nature: ${natureName}, PID: 0x${pid.toString(16).toUpperCase()}${isShiny ? ' ✨ SHINY' : ''}`);
 
   // Extract PP Ups from PP values (Gen 1/2 store actual PP, not PP ups)
   // For simplicity, assume no PP ups (0) - PCCS ORIGINAL doesn't preserve PP ups
@@ -197,7 +204,7 @@ export function convertGen1BoxMonToPk3(mon: Gen1BoxMon): Uint8Array {
   
   // Sanitize moves according to PCCS ORIGINAL method
   const { moves: cleanedMoves, ppUps: _cleanedPPUps } = sanitizeMoveset(
-    speciesId,
+    natDexNum,
     gen3Moves,
     ppUps
   );
@@ -206,11 +213,11 @@ export function convertGen1BoxMonToPk3(mon: Gen1BoxMon): Uint8Array {
     pid,
     trainerId,
     secretId: 0,  // Gen 1/2 don't have Secret ID, use 0
-    speciesId,
+    speciesId: gen3SpeciesIndex,
     heldItemId: 0,
     exp: mon.exp,
     friendship: 70,
-    nickname: speciesName(speciesId),  // Use species name as nickname
+    nickname: speciesName(natDexNum),  // Use species name as nickname (NatDex based)
     otName: "",
     moves: cleanedMoves,
     movePPs: mon.pps,
@@ -246,10 +253,14 @@ export function convertGen2BoxMonToPk3(mon: Gen2BoxMon): Uint8Array {
     spd: spaDV * 2, // Gen 2 only has Special, use for both SpA and SpD
   };
 
-  const speciesId = mon.natDex;  // Use National Dex, not Gen 2 internal ID
-  if (speciesId === 0 || speciesId > 386) {
-    throw new Error(`Invalid Gen2 National Dex: ${speciesId} (Gen2 ID: ${mon.speciesId})`);
+  const natDexNum = mon.natDex;  // Use National Dex, not Gen 2 internal ID
+  if (natDexNum === 0 || natDexNum > 386) {
+    throw new Error(`Invalid Gen2 National Dex: ${natDexNum} (Gen2 ID: ${mon.speciesId})`);
   }
+
+  // CRITICAL: Convert National Dex to Gen 3 internal index
+  const gen3SpeciesIndex = natDexToGen3Index(natDexNum);
+  console.log(`Gen2→PK3: NatDex #${natDexNum} (${speciesName(natDexNum)}) → Gen3 Index ${gen3SpeciesIndex}`);
 
   // Check if Pokemon is shiny in Gen 2
   const isShiny = isGen2Shiny(mon.dvs);
@@ -262,7 +273,7 @@ export function convertGen2BoxMonToPk3(mon: Gen2BoxMon): Uint8Array {
   const pid = isShiny ? generateShinyPID(nature, trainerId) : generateMethod1PID(nature);
   
   const natureName = NATURES[nature] ?? 'Unknown';
-  console.log(`Gen2→PK3: Species ${speciesId}, Nature: ${natureName}, PID: 0x${pid.toString(16).toUpperCase()}${isShiny ? ' ✨ SHINY' : ''}`);
+  console.log(`Gen2→PK3: Nature: ${natureName}, PID: 0x${pid.toString(16).toUpperCase()}${isShiny ? ' ✨ SHINY' : ''}`);
 
   // Extract PP Ups from PP values (Gen 2 stores actual PP, not PP ups)
   // For simplicity, assume no PP ups (0) - PCCS ORIGINAL doesn't preserve PP ups
@@ -272,11 +283,11 @@ export function convertGen2BoxMonToPk3(mon: Gen2BoxMon): Uint8Array {
   // Gen 2 stored moves in different internal order than Gen 3
   const gen3Moves = convertGen2MovesToGen3(mon.moves);
   
-  console.log(`Gen2→PK3 Moves: Raw Gen2=[${mon.moves.join(', ')}] → Gen3=[${gen3Moves.join(', ')}] for species ${speciesId}`);
+  console.log(`Gen2→PK3 Moves: Raw Gen2=[${mon.moves.join(', ')}] → Gen3=[${gen3Moves.join(', ')}] for species ${natDexNum}`);
   
   // Sanitize moves according to PCCS ORIGINAL method
   const { moves: cleanedMoves, ppUps: _cleanedPPUps } = sanitizeMoveset(
-    speciesId,
+    natDexNum,
     gen3Moves,
     ppUps
   );
@@ -288,11 +299,11 @@ export function convertGen2BoxMonToPk3(mon: Gen2BoxMon): Uint8Array {
     pid,
     trainerId,
     secretId: 0,  // Gen 1/2 don't have Secret ID, use 0
-    speciesId,
+    speciesId: gen3SpeciesIndex,
     heldItemId: gen3ItemId,
     exp: mon.exp,
     friendship: 70,
-    nickname: speciesName(speciesId),  // Use species name as nickname
+    nickname: speciesName(natDexNum),  // Use species name as nickname
     otName: "",
     moves: cleanedMoves,
     movePPs: mon.pps,
