@@ -384,16 +384,15 @@ function parseGen1Box(data: Uint8Array, base: number, label?: string): Gen1BoxMo
     }
 
     // Extract nickname from nickname table (11 bytes per Pokemon: 10 chars + 0x50 terminator)
-    // IMPORTANT: Gen 1 box structure has nicknames offset by +11 bytes (first entry unused/reserved)
-    // HTML5PokemonSaveReader uses: nickBase + ((i+1)*11) instead of nickBase + (i*11)
-    const nickOff = base + BOX_NICK_OFF + ((i + 1) * NICK_SIZE);
+    // BOX_NICK_OFF (0x386) already points to the start of the nickname section
+    const nickOff = base + BOX_NICK_OFF + (i * NICK_SIZE);
     const nickname = decodeGBText(data, nickOff, NICK_SIZE);
     
     // DEBUG: Log nickname extraction details for first few Pokemon
     if (i < 3 && label && label.includes("Current")) {
       console.log(`  [Nickname Debug] Slot ${i+1}:`)
       console.log(`    Species: ${boxSpeciesName}`)
-      console.log(`    Nick offset: 0x${nickOff.toString(16)} (base=0x${base.toString(16)} + BOX_NICK_OFF=0x${BOX_NICK_OFF.toString(16)} + (i+1)=${i+1} * NICK_SIZE=${NICK_SIZE})`)
+      console.log(`    Nick offset: 0x${nickOff.toString(16)} (base=0x${base.toString(16)} + BOX_NICK_OFF=0x${BOX_NICK_OFF.toString(16)} + i=${i} * NICK_SIZE=${NICK_SIZE})`)
       console.log(`    Nick bytes:`, Array.from(data.slice(nickOff, nickOff + NICK_SIZE)).map(b => `0x${b.toString(16).padStart(2, '0')}`).join(' '))
       console.log(`    Decoded: "${nickname}"`)
     }
