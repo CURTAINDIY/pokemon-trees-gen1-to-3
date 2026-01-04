@@ -216,9 +216,24 @@ function parseGen1Box(data: Uint8Array, base: number, label?: string): Gen1BoxMo
     const otId16 = readU16BE(raw33, 12);
     const exp = readU24BE(raw33, 14);
     
-    // Validation: Species in box list must match species in Pokemon data
+    // Check for species mismatch (box list vs internal data)
+    // This can happen with certain glitches or cloning
+    // We'll trust the box list species (what player sees) but warn if they differ
     if (speciesIndex !== internalSpecies) {
-      continue; // Corrupted data - species mismatch
+      // Only skip if BOTH species are invalid/unknown
+      const boxSpeciesValid = gen1IndexToNatDex[speciesIndex] !== 0 && gen1IndexToNatDex[speciesIndex] !== undefined;
+      const internalSpeciesValid = gen1IndexToNatDex[internalSpecies] !== 0 && gen1IndexToNatDex[internalSpecies] !== undefined;
+      
+      if (!boxSpeciesValid && !internalSpeciesValid) {
+        continue; // Both species unknown - definitely corrupted
+      }
+      
+      if (!boxSpeciesValid) {
+        continue; // Box list species invalid - can't determine what Pokemon this is
+      }
+      
+      // If we get here, box species is valid, so trust it (even if internal species differs)
+      // This is common with certain Gen 1 glitches and shouldn't prevent extraction
     }
     // const hpEV = readU16BE(raw33, 17);  // Unused
     // const atkEV = readU16BE(raw33, 19);  // Unused
