@@ -257,6 +257,7 @@ function parseGen2Box(data: Uint8Array, base: number, boxNum: number): Gen2BoxMo
       raw32,
       speciesId,
       natDex,
+      nickname: "",  // TODO: Extract actual Gen2 nickname
       otId16,
       exp,
       level,

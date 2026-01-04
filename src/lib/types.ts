@@ -27,6 +27,7 @@ export interface Gen1BoxMon {
   raw33: Uint8Array;
   speciesIndex: number;  // Gen 1 internal index
   natDex: number;        // National Dex number
+  nickname: string;      // Decoded nickname from box
   otId16: number;
   exp: number;
   level: number;
@@ -40,6 +41,7 @@ export interface Gen2BoxMon {
   raw32: Uint8Array;
   speciesId: number;  // Gen 2 internal index
   natDex: number;     // National Dex number
+  nickname: string;   // Decoded nickname from box
   otId16: number;
   exp: number;
   level: number;

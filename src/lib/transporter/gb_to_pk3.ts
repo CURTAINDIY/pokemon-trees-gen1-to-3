@@ -217,6 +217,13 @@ export function convertGen1BoxMonToPk3(mon: Gen1BoxMon): Uint8Array {
     ppUps
   );
 
+  // PCCS: Use actual nickname if different from species name, otherwise use species name
+  // This matches Gen 3 behavior where nicknamed Pokemon show their nickname,
+  // and non-nicknamed Pokemon show their species name
+  const defaultName = speciesName(natDexNum).toUpperCase();
+  const actualNickname = mon.nickname.toUpperCase();
+  const finalNickname = (actualNickname === defaultName) ? speciesName(natDexNum) : mon.nickname;
+
   return buildPk3BoxMon({
     pid,
     trainerId,
@@ -225,7 +232,7 @@ export function convertGen1BoxMonToPk3(mon: Gen1BoxMon): Uint8Array {
     heldItemId: 0,
     exp: truncatedExp,  // Use truncated EXP
     friendship: 70,
-    nickname: speciesName(natDexNum),  // Use species name as nickname (NatDex based)
+    nickname: finalNickname,
     otName: "",
     moves: cleanedMoves,
     movePPs: mon.pps,
@@ -307,6 +314,13 @@ export function convertGen2BoxMonToPk3(mon: Gen2BoxMon): Uint8Array {
   // Convert Gen 2 held item index to Gen 3
   const gen3ItemId = convertGen2ItemToGen3(mon.heldItem);
 
+  // PCCS: Use actual nickname if different from species name, otherwise use species name
+  // This matches Gen 3 behavior where nicknamed Pokemon show their nickname,
+  // and non-nicknamed Pokemon show their species name
+  const defaultName = speciesName(natDexNum).toUpperCase();
+  const actualNickname = mon.nickname.toUpperCase();
+  const finalNickname = (actualNickname === defaultName) ? speciesName(natDexNum) : mon.nickname;
+
   return buildPk3BoxMon({
     pid,
     trainerId,
@@ -315,7 +329,7 @@ export function convertGen2BoxMonToPk3(mon: Gen2BoxMon): Uint8Array {
     heldItemId: gen3ItemId,
     exp: truncatedExp,  // Use truncated EXP
     friendship: 70,
-    nickname: speciesName(natDexNum),  // Use species name as nickname
+    nickname: finalNickname,
     otName: "",
     moves: cleanedMoves,
     movePPs: mon.pps,
