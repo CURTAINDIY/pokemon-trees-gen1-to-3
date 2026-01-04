@@ -3,7 +3,7 @@
 
 import type { Gen1BoxMon, Gen2BoxMon, IVs } from '../types';
 import { buildPk3BoxMon } from '../gen3/pk3';
-import { sanitizeMoveset } from '../dex/moveLegality';
+import { sanitizeMoveset, calculatePPTotal } from '../dex/moveLegality';
 import { speciesName, NATURES } from '../dex/dex';
 import { convertGen2ItemToGen3 } from './itemMapping';
 import { convertGen1MovesToGen3, convertGen2MovesToGen3 } from './moveIndexMapping';
@@ -209,12 +209,23 @@ export function convertGen1BoxMonToPk3(mon: Gen1BoxMon): Uint8Array {
   console.log(`[MOVE DEBUG] Before sanitize - Species #${natDexNum}: Gen1 moves=[${mon.moves}] → Gen3 moves=[${gen3Moves}]`);
   
   // Sanitize moves according to PCCS ORIGINAL method
-  const { moves: cleanedMoves, ppUps: _cleanedPPUps } = sanitizeMoveset(
+  const { moves: cleanedMoves, ppUps: cleanedPPUps } = sanitizeMoveset(
     natDexNum,
     gen3Moves,
     ppUps
   );
   console.log(`[MOVE DEBUG] After sanitize - Species #${natDexNum}: moves=[${cleanedMoves}]`);
+
+  // CRITICAL: Calculate PP values for sanitized moves
+  // Must match the cleaned moveset - if a move slot is empty (0), PP must also be 0
+  // This prevents Gen 3 crashes from non-zero PP on empty move slots
+  const cleanedPPs: [number, number, number, number] = [
+    cleanedMoves[0] ? calculatePPTotal(cleanedMoves[0], cleanedPPUps[0]) : 0,
+    cleanedMoves[1] ? calculatePPTotal(cleanedMoves[1], cleanedPPUps[1]) : 0,
+    cleanedMoves[2] ? calculatePPTotal(cleanedMoves[2], cleanedPPUps[2]) : 0,
+    cleanedMoves[3] ? calculatePPTotal(cleanedMoves[3], cleanedPPUps[3]) : 0,
+  ];
+  console.log(`[MOVE DEBUG] Calculated PPs for Species #${natDexNum}: PPs=[${cleanedPPs}]`);
 
   // Use extracted nickname if available, otherwise fall back to species name
   const nickname = mon.nickname || speciesName(natDexNum);
@@ -230,7 +241,7 @@ export function convertGen1BoxMonToPk3(mon: Gen1BoxMon): Uint8Array {
     nickname,  // Use extracted nickname from Gen 1 save
     otName: "PCCS",  // Gen 3 requires non-empty OT name
     moves: cleanedMoves,
-    movePPs: mon.pps,
+    movePPs: cleanedPPs,
     ivs,
     evs: { hp: 0, atk: 0, def: 0, spe: 0, spa: 0, spd: 0 },
     metLocation: 0xFF, // Fateful encounter
