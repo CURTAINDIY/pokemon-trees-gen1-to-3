@@ -145,47 +145,60 @@ export function extractGen1BoxMons(raw: Uint8Array): Gen1BoxMon[] {
   console.log("\n=== Gen 1 Box Extraction ===");
   
   const currentBoxNum = data[0x284A];
-  console.log(`Current box selected: Box ${currentBoxNum + 1}`);
+  console.log(`Current box number: ${currentBoxNum + 1} (of 12)`);
   
   // First, extract the current box (the one selected in-game)
   const currentBoxMons = parseGen1Box(data, 0x30C0, `Current Box (Box ${currentBoxNum + 1})`);
   if (currentBoxMons.length > 0) {
-    console.log(`Current Box (Box ${currentBoxNum + 1}) at 0x30C0: ${currentBoxMons.length} Pokemon - ${currentBoxMons.map(m => `#${m.natDex} Lv${m.level}`).join(', ')}`);
+    console.log(`✓ Current Box (Box ${currentBoxNum + 1}): ${currentBoxMons.length} Pokemon`);
   } else {
-    console.log(`Current Box (Box ${currentBoxNum + 1}) at 0x30C0: No valid Pokemon found`);
+    console.log(`  Current Box (Box ${currentBoxNum + 1}): Empty`);
   }
   mons.push(...currentBoxMons);
   
-  // Then scan all potential box locations in both SRAM banks
-  const boxBases = [
-    { offset: 0x4000, label: "SRAM Bank 0 - Box 1" },
-    { offset: 0x4000 + BOX_SIZE * 1, label: "SRAM Bank 0 - Box 2" },
-    { offset: 0x4000 + BOX_SIZE * 2, label: "SRAM Bank 0 - Box 3" },
-    { offset: 0x4000 + BOX_SIZE * 3, label: "SRAM Bank 0 - Box 4" },
-    { offset: 0x4000 + BOX_SIZE * 4, label: "SRAM Bank 0 - Box 5" },
-    { offset: 0x4000 + BOX_SIZE * 5, label: "SRAM Bank 0 - Box 6" },
-    { offset: 0x6000, label: "SRAM Bank 1 - Box 7" },
-    { offset: 0x6000 + BOX_SIZE * 1, label: "SRAM Bank 1 - Box 8" },
-    { offset: 0x6000 + BOX_SIZE * 2, label: "SRAM Bank 1 - Box 9" },
-    { offset: 0x6000 + BOX_SIZE * 3, label: "SRAM Bank 1 - Box 10" },
-    { offset: 0x6000 + BOX_SIZE * 4, label: "SRAM Bank 1 - Box 11" },
-    { offset: 0x6000 + BOX_SIZE * 5, label: "SRAM Bank 1 - Box 12" },
-  ];
-
-  for (const { offset, label } of boxBases) {
+  // Gen 1 uses bank-switched SRAM. Each bank can hold multiple boxes, but only
+  // certain boxes are accessible depending on the banking state when saved.
+  // Boxes are arranged in 2 SRAM banks with 6 boxes each (12 total).
+  // Bank 0 (0x4000-0x5FFF): Boxes 1, 2, 3, 4, 5, 6 (but bank-switched)
+  // Bank 1 (0x6000-0x7FFF): Boxes 7, 8, 9, 10, 11, 12 (but bank-switched)
+  // 
+  // We scan all positions, but only boxes that were "banked in" when the game
+  // was saved will have valid data. Invalid boxes are silently skipped.
+  
+  console.log("Scanning SRAM banks for additional boxes...");
+  
+  // Scan SRAM Bank 0 (Boxes 1-6)
+  for (let boxNum = 1; boxNum <= 6; boxNum++) {
+    const offset = 0x4000 + (BOX_SIZE * (boxNum - 1));
     if (offset + BOX_SIZE > data.length) {
-      console.log(`${label}: skipped (exceeds save size)`);
       continue;
     }
     
-    const boxMons = parseGen1Box(data, offset, label);
+    const boxMons = parseGen1Box(data, offset, `Box ${boxNum}`);
     if (boxMons.length > 0) {
-      console.log(`${label} (0x${offset.toString(16)}): ${boxMons.length} Pokemon - ${boxMons.map(m => `#${m.natDex} Lv${m.level}`).join(', ')}`);
+      console.log(`  Box ${boxNum} (SRAM Bank 0, offset 0x${offset.toString(16)}): ${boxMons.length} Pokemon`);
       mons.push(...boxMons);
     }
   }
   
-  console.log(`Total Gen 1 Pokemon extracted: ${mons.length}`);
+  // Scan SRAM Bank 1 (Boxes 7-12)
+  for (let boxNum = 7; boxNum <= 12; boxNum++) {
+    const offset = 0x6000 + (BOX_SIZE * (boxNum - 7));
+    if (offset + BOX_SIZE > data.length) {
+      continue;
+    }
+    
+    const boxMons = parseGen1Box(data, offset, `Box ${boxNum}`);
+    if (boxMons.length > 0) {
+      console.log(`  Box ${boxNum} (SRAM Bank 1, offset 0x${offset.toString(16)}): ${boxMons.length} Pokemon`);
+      mons.push(...boxMons);
+    }
+  }
+  
+  console.log(`\n📊 Total Pokemon extracted: ${mons.length}`);
+  console.log(`📝 Note: Gen 1 uses bank-switched SRAM. Only boxes that were "banked in"`);
+  console.log(`   when the game was saved are accessible. To extract all 12 boxes,`);
+  console.log(`   the player must switch through all box groups and save.`);
   console.log("============================\n");
 
   return mons;
@@ -202,6 +215,30 @@ function parseGen1Box(data: Uint8Array, base: number, label?: string): Gen1BoxMo
   
   if (count === 0) {
     return mons; // Empty box, no log needed
+  }
+
+  // DEBUG: Show full box structure for current box
+  if (label && label.includes("Current")) {
+    console.log(`\n[DEBUG] ${label} - Full Box Analysis:`);
+    console.log(`  Box base offset: 0x${base.toString(16)}`);
+    console.log(`  Count byte (offset +0): ${count}`);
+    
+    // Show first 30 bytes of box data
+    const debugBytes: string[] = [];
+    for (let i = 0; i < Math.min(30, data.length - base); i++) {
+      debugBytes.push(`0x${data[base + i].toString(16).padStart(2, '0')}`);
+    }
+    console.log(`  First 30 bytes: ${debugBytes.join(' ')}`);
+    
+    console.log(`  Species List (${count} Pokemon):`);
+    for (let i = 0; i < Math.min(count, 20); i++) {
+      const speciesIndex = data[base + BOX_SPECIES_OFF + i];
+      const natDex = gen1IndexToNatDex[speciesIndex];
+      const monOff = base + BOX_MONS_OFF + i * MON_SIZE;
+      const level = monOff + 3 < data.length ? data[monOff + 3] : '??';
+      console.log(`    Slot ${i+1}: Species=0x${speciesIndex.toString(16).padStart(2, '0')} -> #${natDex || '???'} (Level ${level})`);
+    }
+    console.log();
   }
 
   for (let i = 0; i < count; i++) {
