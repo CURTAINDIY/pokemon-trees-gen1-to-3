@@ -216,24 +216,35 @@ function parseGen1Box(data: Uint8Array, base: number, label?: string): Gen1BoxMo
     const otId16 = readU16BE(raw33, 12);
     const exp = readU24BE(raw33, 14);
     
+    // Get species names for debugging
+    const boxSpeciesNatDex = gen1IndexToNatDex[speciesIndex];
+    const internalSpeciesNatDex = gen1IndexToNatDex[internalSpecies];
+    const boxSpeciesName = boxSpeciesNatDex ? `#${boxSpeciesNatDex}` : `Unknown(${speciesIndex})`;
+    const internalSpeciesName = internalSpeciesNatDex ? `#${internalSpeciesNatDex}` : `Unknown(${internalSpecies})`;
+    
     // Check for species mismatch (box list vs internal data)
     // This can happen with certain glitches or cloning
     // We'll trust the box list species (what player sees) but warn if they differ
     if (speciesIndex !== internalSpecies) {
+      console.log(`  [Species Mismatch] Slot ${i+1}: Box=${boxSpeciesName}, Internal=${internalSpeciesName}, Level=${level}, Exp=${exp}`);
+      
       // Only skip if BOTH species are invalid/unknown
-      const boxSpeciesValid = gen1IndexToNatDex[speciesIndex] !== 0 && gen1IndexToNatDex[speciesIndex] !== undefined;
-      const internalSpeciesValid = gen1IndexToNatDex[internalSpecies] !== 0 && gen1IndexToNatDex[internalSpecies] !== undefined;
+      const boxSpeciesValid = boxSpeciesNatDex !== 0 && boxSpeciesNatDex !== undefined;
+      const internalSpeciesValid = internalSpeciesNatDex !== 0 && internalSpeciesNatDex !== undefined;
       
       if (!boxSpeciesValid && !internalSpeciesValid) {
+        console.log(`    → REJECTED: Both species unknown`);
         continue; // Both species unknown - definitely corrupted
       }
       
       if (!boxSpeciesValid) {
+        console.log(`    → REJECTED: Box species invalid`);
         continue; // Box list species invalid - can't determine what Pokemon this is
       }
       
       // If we get here, box species is valid, so trust it (even if internal species differs)
       // This is common with certain Gen 1 glitches and shouldn't prevent extraction
+      console.log(`    → ACCEPTED: Trusting box species ${boxSpeciesName}`);
     }
     // const hpEV = readU16BE(raw33, 17);  // Unused
     // const atkEV = readU16BE(raw33, 19);  // Unused
@@ -246,34 +257,40 @@ function parseGen1Box(data: Uint8Array, base: number, label?: string): Gen1BoxMo
     const natDex = gen1IndexToNatDex[speciesIndex];
     
     if (natDex === 0 || natDex === undefined) {
+      console.log(`  [Unknown Species] Slot ${i+1}: Species index ${speciesIndex} - REJECTED`);
       continue; // Unknown species, skip
     }
 
     // Validation: Skip obviously corrupted/glitched Pokemon
     // Level must be 1-100
     if (level < 1 || level > 100) {
+      console.log(`  [Invalid Level] ${boxSpeciesName} Lv${level} - REJECTED (must be 1-100)`);
       continue;
     }
     
     // EXP must be reasonable for the level
     // Catch absurd EXP values that indicate corruption
     if (exp > 2000000) {
+      console.log(`  [Excessive EXP] ${boxSpeciesName} Lv${level} Exp=${exp} - REJECTED (>2M)`);
       continue; // Max legit Gen 1 exp is ~1.6M (Slow growth to level 100)
     }
     
     // Low level Pokemon shouldn't have extreme EXP
     if (level <= 10 && exp > 10000) {
+      console.log(`  [EXP Too High For Level] ${boxSpeciesName} Lv${level} Exp=${exp} - REJECTED`);
       continue;
     }
     
     // Legendaries at level 10 or below are suspicious (they're caught at higher levels)
     // Mewtwo, Articuno, Zapdos, Moltres are caught at level 50+
     if ((natDex === 144 || natDex === 145 || natDex === 146 || natDex === 150) && level < 40) {
+      console.log(`  [Low-Level Legendary] ${boxSpeciesName} Lv${level} - REJECTED (legendary must be ≥40)`);
       continue; // Likely glitched/corrupted legendary
     }
     
     // Skip if all moves are 0
     if (moves[0] === 0 && moves[1] === 0 && moves[2] === 0 && moves[3] === 0) {
+      console.log(`  [No Moves] ${boxSpeciesName} Lv${level} - REJECTED (all moves are 0)`);
       continue;
     }
 
