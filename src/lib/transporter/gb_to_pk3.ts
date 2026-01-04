@@ -180,10 +180,8 @@ export function convertGen1BoxMonToPk3(mon: Gen1BoxMon): Uint8Array {
     throw new Error(`Cannot convert Gen1 species index ${mon.speciesIndex} - invalid National Dex ID`);
   }
   
-  // CRITICAL: Convert National Dex to Gen 3 internal index
-  // Gen 3 uses different internal indices (especially for Hoenn Pokemon)
-  const gen3SpeciesIndex = natDexToGen3Index(natDexNum);
-  console.log(`Gen1→PK3: NatDex #${natDexNum} (${speciesName(natDexNum)}) → Gen3 Index ${gen3SpeciesIndex}`);
+  // Note: buildPk3BoxMon will convert National Dex to Gen3 index internally
+  console.log(`Gen1→PK3: NatDex #${natDexNum} (${speciesName(natDexNum)})`);
 
   // Check if Pokemon was shiny in Gen 2 (Gen 1 doesn't have shinies, but uses same DV calculation)
   const isShiny = isGen2Shiny(mon.dvs);
@@ -224,7 +222,7 @@ export function convertGen1BoxMonToPk3(mon: Gen1BoxMon): Uint8Array {
     pid,
     trainerId,
     secretId: 0,  // Gen 1/2 don't have Secret ID, use 0
-    speciesId: gen3SpeciesIndex,
+    speciesId: natDexNum,  // Pass National Dex, buildPk3BoxMon converts to Gen3 index
     heldItemId: 0,
     exp: truncatedExp,  // Use truncated EXP
     friendship: 70,
@@ -269,9 +267,8 @@ export function convertGen2BoxMonToPk3(mon: Gen2BoxMon): Uint8Array {
     throw new Error(`Invalid Gen2 National Dex: ${natDexNum} (Gen2 ID: ${mon.speciesId})`);
   }
 
-  // CRITICAL: Convert National Dex to Gen 3 internal index
-  const gen3SpeciesIndex = natDexToGen3Index(natDexNum);
-  console.log(`Gen2→PK3: NatDex #${natDexNum} (${speciesName(natDexNum)}) → Gen3 Index ${gen3SpeciesIndex}`);
+  // Note: buildPk3BoxMon will convert National Dex to Gen3 index internally
+  console.log(`Gen2→PK3: NatDex #${natDexNum} (${speciesName(natDexNum)})`);
 
   // Check if Pokemon is shiny in Gen 2
   const isShiny = isGen2Shiny(mon.dvs);
@@ -317,7 +314,7 @@ export function convertGen2BoxMonToPk3(mon: Gen2BoxMon): Uint8Array {
     pid,
     trainerId,
     secretId: 0,  // Gen 1/2 don't have Secret ID, use 0
-    speciesId: gen3SpeciesIndex,
+    speciesId: natDexNum,  // Pass National Dex, buildPk3BoxMon converts to Gen3 index
     heldItemId: gen3ItemId,
     exp: truncatedExp,  // Use truncated EXP
     friendship: 70,

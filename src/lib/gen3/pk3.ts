@@ -375,6 +375,7 @@ export function buildPk3BoxMon(params: {
   // CRITICAL: Convert National Dex ID to Gen 3 internal index before writing
   // Gen 3 stores species as internal index (Hoenn Pokemon are shuffled!)
   const speciesIndex = natDexToGen3Index(params.speciesId);
+  console.log(`[PK3 Build] Input speciesId=${params.speciesId} → Gen3 Index=${speciesIndex}, nickname="${params.nickname}"`);
   writeU16LE(growth, 0x00, speciesIndex);
   writeU16LE(growth, 0x02, params.heldItemId);
   writeU32LE(growth, 0x04, params.exp);
