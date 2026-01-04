@@ -1,6 +1,7 @@
 ﻿// src/lib/gen1/gen1IndexToNatDex.ts
 // Gen 1 internal index to National Dex number mapping
-// Source: https://bulbapedia.bulbagarden.net/wiki/List_of_Pok%C3%A9mon_by_index_number_(Generation_I)
+// Source: Bulbapedia - List of Pokémon by index number (Generation I)
+// CORRECTED using authoritative reference document
 
 export const gen1IndexToNatDex: { [key: number]: number } = {
   1: 112,   // Rhydon
@@ -18,7 +19,7 @@ export const gen1IndexToNatDex: { [key: number]: number } = {
   13: 88,   // Grimer
   14: 94,   // Gengar
   15: 29,   // Nidoran♀
-  16: 31,   // Nidoqueen
+  16: 31,    // Nidoqueen
   17: 104,  // Cubone
   18: 111,  // Rhyhorn
   19: 131,  // Lapras
@@ -33,125 +34,146 @@ export const gen1IndexToNatDex: { [key: number]: number } = {
   28: 9,    // Blastoise
   29: 127,  // Pinsir
   30: 114,  // Tangela
+  // 31-32: MissingNo.
   33: 58,   // Growlithe
   34: 95,   // Onix
   35: 22,   // Fearow
   36: 16,   // Pidgey
-  37: 52,   // Meowth
-  38: 53,   // Persian
-  39: 25,   // Pikachu
-  40: 26,   // Raichu
-  41: 15,   // Beedrill
-  42: 18,   // Pidgeot
-  43: 64,   // Kadabra
-  44: 68,   // Machamp
-  45: 55,   // Golduck
-  46: 113,  // Chansey
-  47: 132,  // Ditto
-  48: 12,   // Butterfree
-  49: 36,   // Clefable
-  50: 97,   // Hypno
-  51: 87,   // Dewgong
-  52: 86,   // Seel
-  53: 10,   // Caterpie
-  54: 11,   // Metapod
-  55: 23,   // Ekans
-  56: 24,   // Arbok
-  57: 17,   // Pidgeotto
-  58: 142,  // Aerodactyl
-  59: 148,  // Dragonair
-  60: 149,  // Dragonite
-  61: 54,   // Psyduck
-  62: 71,   // Victreebel
-  63: 133,  // Eevee
-  64: 20,   // Raticate
-  65: 27,   // Sandshrew
-  66: 28,   // Sandslash
-  67: 30,   // Nidorina
-  68: 33,   // Nidorino
-  69: 137,  // Porygon
-  70: 122,  // Mr. Mime
-  71: 99,   // Kingler
+  37: 79,   // Slowpoke
+  38: 64,   // Kadabra
+  39: 75,   // Graveler
+  40: 113,  // Chansey
+  41: 67,   // Machoke
+  42: 122,  // Mr. Mime
+  43: 106,  // Hitmonlee
+  44: 107,  // Hitmonchan
+  45: 24,   // Arbok
+  46: 47,   // Parasect
+  47: 54,   // Psyduck
+  48: 96,   // Drowzee
+  49: 76,   // Golem
+  // 50: MissingNo.
+  51: 126,  // Magmar
+  // 52: MissingNo.
+  53: 125,  // Electabuzz
+  54: 82,   // Magneton
+  55: 109,  // Koffing
+  // 56: MissingNo.
+  57: 56,   // Mankey
+  58: 86,   // Seel
+  59: 50,   // Diglett
+  60: 128,  // Tauros
+  // 61-63: MissingNo.
+  64: 83,   // Farfetch'd
+  65: 48,   // Venonat
+  66: 149,  // Dragonite
+  // 67-69: MissingNo.
+  70: 84,   // Doduo
+  71: 60,   // Poliwag
   72: 124,  // Jynx
-  73: 119,  // Seaking
-  74: 126,  // Magmar
-  75: 125,  // Electabuzz
-  76: 82,   // Magneton
-  77: 109,  // Koffing
-  78: 56,   // Mankey
-  79: 95,   // Onix (duplicate)
-  80: 117,  // Seadra
-  81: 37,   // Vulpix
-  82: 38,   // Ninetales
-  83: 39,   // Jigglypuff
-  84: 40,   // Wigglytuff
-  85: 140,  // Kabuto
-  86: 141,  // Kabutops
-  87: 116,  // Horsea
-  88: 118,  // Goldeen
-  89: 4,    // Charmander
-  90: 5,    // Charmeleon
-  91: 6,    // Charizard
-  92: 7,    // Squirtle
-  93: 8,    // Wartortle
-  94: 138,  // Omanyte
-  95: 139,  // Omastar
-  96: 143,  // Snorlax
-  97: 110,  // Weezing
-  98: 1,    // Bulbasaur
-  99: 3,    // Venusaur
-  100: 73,  // Tentacruel
-  101: 91,  // Cloyster
-  102: 105, // Marowak
-  103: 128, // Tauros
-  104: 106, // Hitmonlee
-  105: 107, // Hitmonchan
-  106: 134, // Vaporeon
-  107: 135, // Jolteon
-  108: 136, // Flareon
-  109: 13,  // Weedle
-  110: 14,  // Kakuna
-  111: 19,  // Rattata
-  112: 41,  // Zubat
-  113: 42,  // Golbat
-  114: 43,  // Oddish
-  115: 44,  // Gloom
-  116: 45,  // Vileplume
-  117: 46,  // Paras
-  118: 47,  // Parasect
-  119: 48,  // Venonat
-  120: 49,  // Venomoth
-  121: 50,  // Diglett
-  122: 51,  // Dugtrio
-  123: 57,  // Primeape
-  124: 60,  // Poliwag
-  125: 61,  // Poliwhirl
-  126: 62,  // Poliwrath
-  127: 63,  // Abra
-  128: 65,  // Alakazam
-  129: 66,  // Machop
-  130: 67,  // Machoke
-  131: 69,  // Bellsprout
-  132: 70,  // Weepinbell
-  133: 74,  // Geodude
-  134: 75,  // Graveler
-  135: 76,  // Golem
-  136: 77,  // Ponyta
-  137: 78,  // Rapidash
-  138: 79,  // Slowpoke
-  139: 81,  // Magnemite
-  140: 83,  // Farfetch'd
-  141: 84,  // Doduo
-  142: 85,  // Dodrio
-  143: 89,  // Muk
-  144: 93,  // Haunter
-  145: 96,  // Drowzee
-  146: 98,  // Krabby
-  147: 101, // Electrode
-  148: 121, // Starmie
-  149: 144, // Articuno
-  150: 145, // Zapdos
-  151: 146, // Moltres
-  152: 147, // Dratini
-  153: 150, // Mewtwo
+  73: 146,  // Moltres
+  74: 144,  // Articuno
+  75: 145,  // Zapdos
+  76: 132,  // Ditto
+  77: 52,   // Meowth
+  78: 98,   // Krabby
+  // 79-81: MissingNo.
+  82: 37,   // Vulpix
+  83: 38,   // Ninetales
+  84: 25,   // Pikachu
+  85: 26,   // Raichu
+  // 86-87: MissingNo.
+  88: 147,  // Dratini
+  89: 148,  // Dragonair
+  90: 140,  // Kabuto
+  91: 141,  // Kabutops
+  92: 116,  // Horsea
+  93: 117,  // Seadra
+  // 94-95: MissingNo.
+  96: 27,   // Sandshrew
+  97: 28,   // Sandslash
+  98: 138,  // Omanyte
+  99: 139,  // Omastar
+  100: 39,  // Jigglypuff
+  101: 40,  // Wigglytuff
+  102: 133, // Eevee
+  103: 136, // Flareon
+  104: 135, // Jolteon
+  105: 134, // Vaporeon
+  106: 66,  // Machop
+  107: 41,  // Zubat
+  108: 23,  // Ekans
+  109: 46,  // Paras
+  110: 61,  // Poliwhirl
+  111: 62,  // Poliwrath
+  112: 13,  // Weedle
+  113: 14,  // Kakuna
+  114: 15,  // Beedrill
+  // 115: MissingNo.
+  116: 85,  // Dodrio
+  117: 57,  // Primeape
+  118: 51,  // Dugtrio
+  119: 49,  // Venomoth
+  120: 87,  // Dewgong
+  // 121-122: MissingNo.
+  123: 10,  // Caterpie
+  124: 11,  // Metapod
+  125: 12,  // Butterfree
+  126: 68,  // Machamp
+  // 127: MissingNo.
+  128: 55,  // Golduck
+  129: 97,  // Hypno
+  130: 42,  // Golbat
+  131: 150, // Mewtwo
+  132: 143, // Snorlax
+  133: 129, // Magikarp
+  // 134-135: MissingNo.
+  136: 89,  // Muk
+  // 137: MissingNo.
+  138: 99,  // Kingler
+  139: 91,  // Cloyster
+  // 140: MissingNo.
+  141: 101, // Electrode
+  142: 36,  // Clefable
+  143: 110, // Weezing
+  144: 53,  // Persian
+  145: 105, // Marowak
+  // 146: MissingNo.
+  147: 93,  // Haunter
+  148: 63,  // Abra
+  149: 65,  // Alakazam
+  150: 17,  // Pidgeotto
+  151: 18,  // Pidgeot
+  152: 121, // Starmie
+  153: 1,   // Bulbasaur
+  154: 3,   // Venusaur
+  155: 73,  // Tentacruel
+  // 156: MissingNo.
+  157: 118, // Goldeen
+  158: 119, // Seaking
+  // 159-162: MissingNo.
+  163: 77,  // Ponyta
+  164: 78,  // Rapidash
+  165: 19,  // Rattata
+  166: 20,  // Raticate
+  167: 33,  // Nidorino
+  168: 30,  // Nidorina
+  169: 74,  // Geodude
+  170: 137, // Porygon
+  171: 142, // Aerodactyl
+  // 172: MissingNo.
+  173: 81,  // Magnemite
+  // 174-175: MissingNo.
+  176: 4,   // Charmander
+  177: 7,   // Squirtle
+  178: 5,   // Charmeleon
+  179: 8,   // Wartortle
+  180: 6,   // Charizard
+  // 181-184: MissingNo.
+  185: 43,  // Oddish
+  186: 44,  // Gloom
+  187: 45,  // Vileplume
+  188: 69,  // Bellsprout
+  189: 70,  // Weepinbell
+  190: 71,  // Victreebel
 };
