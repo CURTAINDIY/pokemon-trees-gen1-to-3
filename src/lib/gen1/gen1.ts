@@ -149,6 +149,11 @@ export function extractGen1BoxMons(raw: Uint8Array): Gen1BoxMon[] {
   
   // First, extract the current box (the one selected in-game)
   const currentBoxMons = parseGen1Box(data, 0x30C0, `Current Box (Box ${currentBoxNum + 1})`);
+  if (currentBoxMons.length > 0) {
+    console.log(`Current Box (Box ${currentBoxNum + 1}) at 0x30C0: ${currentBoxMons.length} Pokemon - ${currentBoxMons.map(m => `#${m.natDex} Lv${m.level}`).join(', ')}`);
+  } else {
+    console.log(`Current Box (Box ${currentBoxNum + 1}) at 0x30C0: No valid Pokemon found`);
+  }
   mons.push(...currentBoxMons);
   
   // Then scan all potential box locations in both SRAM banks
