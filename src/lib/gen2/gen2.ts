@@ -4,6 +4,7 @@
 
 import type { Gen2BoxMon } from '../types';
 import { gen2IndexToNatDex } from './gen2_index_to_natdex';
+import { decodeGBText } from '../binary/gbText';
 
 export const GEN2_SAVE_SIZE = 0x8000; // 32KB
 
@@ -204,6 +205,9 @@ function parseGen2Box(data: Uint8Array, base: number, boxNum: number): Gen2BoxMo
   }
 
   const monsBase = base + 0x16;
+  const NICK_SIZE = 11;  // Gen 2 allocates 11 bytes per nickname (10 chars + 0x50 terminator)
+  // Gen 2 nickname table is after all Pokemon data: base + 0x16 + (20 * 32)
+  const nickBase = base + 0x16 + 20 * 32; // Nicknames start after max 20 slots
 
   for (let i = 0; i < count; i++) {
     const monOff = monsBase + i * 32;
@@ -253,11 +257,14 @@ function parseGen2Box(data: Uint8Array, base: number, boxNum: number): Gen2BoxMo
       continue; // Invalid mapping
     }
 
+    // Extract nickname from nickname table (11 bytes per Pokemon: 10 chars + 0x50 terminator)
+    const nickOff = nickBase + (i * NICK_SIZE);
+    const nickname = decodeGBText(data, nickOff, NICK_SIZE);
+
     mons.push({
       raw32,
       speciesId,
       natDex,
-      nickname: "",  // TODO: Extract actual Gen2 nickname
       otId16,
       exp,
       level,
@@ -265,6 +272,7 @@ function parseGen2Box(data: Uint8Array, base: number, boxNum: number): Gen2BoxMo
       moves,
       pps,
       dvs,
+      nickname,
     });
   }
 

@@ -3,8 +3,8 @@
 // Saves are 32KB (0x8000 bytes)
 
 import { gen1IndexToNatDex } from "./gen1_index_to_natdex";
-import { decodeGBText } from "../binary/gbText";
 import type { Gen1BoxMon } from "../types";
+import { decodeGBText } from "../binary/gbText";
 
 export const GEN1_SAVE_SIZE = 0x8000; // 32KB
 
@@ -46,9 +46,8 @@ const BOX_SIZE = 0x462;
 const BOX_COUNT_OFF = 0;
 const BOX_SPECIES_OFF = 1;
 const BOX_MONS_OFF = 0x16;
-const BOX_NICK_OFF = 0x386;  // Nicknames (11 bytes each, 20 slots)
-// const BOX_OT_OFF = 0x2AA;  // OT names (11 bytes each, 20 slots) - future use
-const NICK_SIZE = 11;
+const BOX_NICK_OFF = 0x386;
+const NICK_SIZE = 11;  // Gen 1 allocates 11 bytes per nickname (10 chars + 0x50 terminator)
 const MON_SIZE = 33;
 
 export function detectGen1Save(raw: Uint8Array): boolean {
@@ -377,7 +376,7 @@ function parseGen1Box(data: Uint8Array, base: number, label?: string): Gen1BoxMo
       continue;
     }
 
-    // Extract nickname from the nickname section (11 bytes per Pokemon)
+    // Extract nickname from nickname table (11 bytes per Pokemon: 10 chars + 0x50 terminator)
     const nickOff = base + BOX_NICK_OFF + (i * NICK_SIZE);
     const nickname = decodeGBText(data, nickOff, NICK_SIZE);
 
@@ -385,13 +384,13 @@ function parseGen1Box(data: Uint8Array, base: number, label?: string): Gen1BoxMo
       raw33,
       speciesIndex,
       natDex,
-      nickname,
       otId16,
       exp,
       level,
       moves,
       pps,
       dvs,
+      nickname,
     });
   }
 

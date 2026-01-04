@@ -27,13 +27,13 @@ export interface Gen1BoxMon {
   raw33: Uint8Array;
   speciesIndex: number;  // Gen 1 internal index
   natDex: number;        // National Dex number
-  nickname: string;      // Decoded nickname from box
   otId16: number;
   exp: number;
   level: number;
   moves: [number, number, number, number];
   pps: [number, number, number, number];
   dvs: number;  // 16-bit DVs
+  nickname?: string;     // Decoded nickname from save file
 }
 
 // Gen 2 Pokemon structure (32 bytes boxed format)
@@ -41,7 +41,6 @@ export interface Gen2BoxMon {
   raw32: Uint8Array;
   speciesId: number;  // Gen 2 internal index
   natDex: number;     // National Dex number
-  nickname: string;   // Decoded nickname from box
   otId16: number;
   exp: number;
   level: number;
@@ -49,6 +48,7 @@ export interface Gen2BoxMon {
   moves: [number, number, number, number];
   pps: [number, number, number, number];
   dvs: number;  // 16-bit DVs
+  nickname?: string;  // Decoded nickname from save file
 }
 
 // Gen 3 IVs

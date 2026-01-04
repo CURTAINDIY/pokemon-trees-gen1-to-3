@@ -217,13 +217,9 @@ export function convertGen1BoxMonToPk3(mon: Gen1BoxMon): Uint8Array {
     ppUps
   );
 
-  // PCCS: Use actual nickname if different from species name, otherwise use species name
-  // This matches Gen 3 behavior where nicknamed Pokemon show their nickname,
-  // and non-nicknamed Pokemon show their species name
-  const defaultName = speciesName(natDexNum).toUpperCase();
-  const actualNickname = mon.nickname.toUpperCase();
-  const finalNickname = (actualNickname === defaultName) ? speciesName(natDexNum) : mon.nickname;
-
+  // Use extracted nickname if available, otherwise fall back to species name
+  const nickname = mon.nickname || speciesName(natDexNum);
+  
   return buildPk3BoxMon({
     pid,
     trainerId,
@@ -232,7 +228,7 @@ export function convertGen1BoxMonToPk3(mon: Gen1BoxMon): Uint8Array {
     heldItemId: 0,
     exp: truncatedExp,  // Use truncated EXP
     friendship: 70,
-    nickname: finalNickname,
+    nickname,  // Use extracted nickname from Gen 1 save
     otName: "",
     moves: cleanedMoves,
     movePPs: mon.pps,
@@ -314,12 +310,8 @@ export function convertGen2BoxMonToPk3(mon: Gen2BoxMon): Uint8Array {
   // Convert Gen 2 held item index to Gen 3
   const gen3ItemId = convertGen2ItemToGen3(mon.heldItem);
 
-  // PCCS: Use actual nickname if different from species name, otherwise use species name
-  // This matches Gen 3 behavior where nicknamed Pokemon show their nickname,
-  // and non-nicknamed Pokemon show their species name
-  const defaultName = speciesName(natDexNum).toUpperCase();
-  const actualNickname = mon.nickname.toUpperCase();
-  const finalNickname = (actualNickname === defaultName) ? speciesName(natDexNum) : mon.nickname;
+  // Use extracted nickname if available, otherwise fall back to species name
+  const nickname = mon.nickname || speciesName(natDexNum);
 
   return buildPk3BoxMon({
     pid,
@@ -329,7 +321,7 @@ export function convertGen2BoxMonToPk3(mon: Gen2BoxMon): Uint8Array {
     heldItemId: gen3ItemId,
     exp: truncatedExp,  // Use truncated EXP
     friendship: 70,
-    nickname: finalNickname,
+    nickname,  // Use extracted nickname from Gen 2 save
     otName: "",
     moves: cleanedMoves,
     movePPs: mon.pps,
