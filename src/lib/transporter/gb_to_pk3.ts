@@ -72,7 +72,7 @@ function generateShinyPID(nature: number, trainerId: number): number {
     const pidLow = (seed >>> 16) & 0xFFFF;
     seed = lcrgNext(seed);
     const pidHigh = (seed >>> 16) & 0xFFFF;
-    const pid = (pidHigh << 16) | pidLow;
+    const pid = ((pidHigh << 16) | pidLow) >>> 0; // Force unsigned
     
     // Check if nature matches
     if ((pid % 25) !== nature) continue;
@@ -126,7 +126,7 @@ function generateMethod1PID(nature: number, desiredAbility: number = 0): number 
     const pidLow = (seed >>> 16) & 0xFFFF;
     seed = lcrgNext(seed);
     const pidHigh = (seed >>> 16) & 0xFFFF;
-    const pid = (pidHigh << 16) | pidLow;
+    const pid = ((pidHigh << 16) | pidLow) >>> 0; // Force unsigned
     
     // Check if nature matches
     if ((pid % 25) !== nature) continue;
