@@ -1,10 +1,73 @@
 # Legitimacy and Save Decoding Fixes Applied
 
-**Date:** January 3, 2026
+**Date:** January 3-4, 2026
 
 ## Critical Fixes Applied
 
-### 1. ✅ Species Encoding Error (pk3.ts) - **MOST CRITICAL**
+### 1. ✅ Nickname Extraction with Correct 11-Byte Stride (Gen 1 & Gen 2) - **CRITICAL**
+**Date:** January 4, 2026
+**Commit:** 81c531c
+**Files:** `src/lib/gen1/gen1.ts`, `src/lib/gen2/gen2.ts`, `src/lib/types.ts`, `src/lib/transporter/gb_to_pk3.ts`
+
+**Problem:**
+- Nicknames were not being extracted from Gen 1 or Gen 2 save files
+- All Pokemon were defaulting to species names as nicknames
+- Previous implementations in other projects had wrong stride (10 bytes instead of 11)
+- This caused progressive misalignment: Pokemon #2 reads 1 byte into Pokemon #1's nickname terminator, Pokemon #3 reads 2 bytes into Pokemon #1's terminator, etc.
+- Result: Completely garbled nicknames (e.g., Snorlax nicknamed "BLASTOISE")
+
+**Root Cause:**
+Gen 1 and Gen 2 both allocate **11 bytes per nickname**:
+- 10 bytes for the actual nickname characters (using Gen 1/2 text encoding)
+- 1 byte for the terminator (0x50)
+
+The nickname table structure:
+```
+Gen 1: BOX_NICK_OFF = 0x386
+Gen 2: nickBase = base + 0x16 + (20 * 32)  // After all Pokemon data
+
+Each nickname:
+Offset +0:  First character
+Offset +1:  Second character
+...
+Offset +9:  Tenth character  
+Offset +10: Terminator (0x50)
+
+Total: 11 bytes per nickname
+```
+
+If you use 10-byte stride, you're reading:
+- Pokemon #1: Bytes 0-9 ✓ (correct)
+- Pokemon #2: Bytes 10-19 ✗ (should be 11-20, now reading terminator + 9 chars of #2)
+- Pokemon #3: Bytes 20-29 ✗ (should be 22-31, now reading last char of #2 + all of #3)
+- Gets progressively worse...
+
+**Fix Applied:**
+```typescript
+// Gen 1 (gen1.ts)
+const BOX_NICK_OFF = 0x386;
+const NICK_SIZE = 11;  // 10 chars + 0x50 terminator
+
+const nickOff = base + BOX_NICK_OFF + (i * NICK_SIZE);  // ✓ Correct stride
+const nickname = decodeGBText(data, nickOff, NICK_SIZE);
+
+// Gen 2 (gen2.ts)
+const NICK_SIZE = 11;  // 10 chars + 0x50 terminator
+const nickBase = base + 0x16 + 20 * 32;  // After max 20 Pokemon slots
+
+const nickOff = nickBase + (i * NICK_SIZE);  // ✓ Correct stride
+const nickname = decodeGBText(data, nickOff, NICK_SIZE);
+```
+
+**Impact:**
+- **CRITICAL FIX** - Pokemon now transfer with their original nicknames
+- Preserves player attachment to nicknamed Pokemon
+- No more generic species names or garbled text
+- Proper Gen 1/2 → Gen 3 nickname preservation
+
+---
+
+### 2. ✅ Species Encoding Error (pk3.ts) - **MOST CRITICAL**
 **File:** `src/lib/gen3/pk3.ts` (Lines 1-8, 373-378)
 
 **Problem:**
