@@ -145,7 +145,18 @@ export function extractGen1BoxMons(raw: Uint8Array): Gen1BoxMon[] {
   console.log("\n=== Gen 1 Box Extraction ===");
   
   const currentBoxNum = data[0x284A];
-  console.log(`Current box number: ${currentBoxNum + 1} (of 12)`);
+  console.log(`Current box number: ${currentBoxNum + 1} (of 12) [Raw value: 0x${currentBoxNum.toString(16)}]`);
+  console.log(`[DEBUG] Box number byte at 0x284A: 0x${currentBoxNum.toString(16).padStart(2, '0')} (decimal: ${currentBoxNum})`);
+  
+  // CRITICAL: Gen 1 box numbers are stored 0-indexed (0 = Box 1, 1 = Box 2, etc.)
+  // The current box in SRAM (at 0x30C0) should match what the game shows as "active"
+  // Let's also check if Box 1 in SRAM contains what user expects
+  console.log(`[DEBUG] Checking SRAM Box 1 (offset 0x4000) for comparison...`);
+  const sramBox1Mons = parseGen1Box(data, 0x4000, `SRAM Box 1 (debug check)`);
+  if (sramBox1Mons.length > 0) {
+    console.log(`[DEBUG] SRAM Box 1 contains: ${sramBox1Mons.length} Pokemon`);
+    console.log(`[DEBUG] SRAM Box 1 first 3 species:`, sramBox1Mons.slice(0, 3).map(m => `#${m.natDex}`).join(', '));
+  }
   
   // First, extract the current box (the one selected in-game)
   const currentBoxMons = parseGen1Box(data, 0x30C0, `Current Box (Box ${currentBoxNum + 1})`);
