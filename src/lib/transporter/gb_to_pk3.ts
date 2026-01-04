@@ -7,7 +7,6 @@ import { sanitizeMoveset } from '../dex/moveLegality';
 import { speciesName, NATURES } from '../dex/dex';
 import { convertGen2ItemToGen3 } from './itemMapping';
 import { convertGen1MovesToGen3, convertGen2MovesToGen3 } from './moveIndexMapping';
-import { natDexToGen3Index } from '../gen3/gen3_index_to_natdex';
 import { SPECIES_EXP_GROUP, calculateExpForLevel } from '../dex/expGroups';
 
 function lcrgNext(seed: number): number {
