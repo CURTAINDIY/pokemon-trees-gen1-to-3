@@ -229,6 +229,22 @@ function parseGen1Box(data: Uint8Array, base: number, label?: string): Gen1BoxMo
       continue; // Unknown species, skip
     }
 
+    // Validation: Skip obviously corrupted/glitched Pokemon
+    // Level must be 1-100
+    if (level < 1 || level > 100) {
+      continue;
+    }
+    
+    // EXP must be reasonable (not millions for low level Pokemon)
+    if (level <= 10 && exp > 10000) {
+      continue; // Likely corrupted
+    }
+    
+    // Skip if all moves are 0
+    if (moves[0] === 0 && moves[1] === 0 && moves[2] === 0 && moves[3] === 0) {
+      continue;
+    }
+
     mons.push({
       raw33,
       speciesIndex,
