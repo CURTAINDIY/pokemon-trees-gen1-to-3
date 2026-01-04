@@ -8,23 +8,31 @@ import { speciesName, NATURES } from '../dex/dex';
 import { convertGen2ItemToGen3 } from './itemMapping';
 import { convertGen1MovesToGen3, convertGen2MovesToGen3 } from './moveIndexMapping';
 import { natDexToGen3Index } from '../gen3/gen3_index_to_natdex';
+import { SPECIES_EXP_GROUP, calculateExpForLevel } from '../dex/expGroups';
 
 function lcrgNext(seed: number): number {
   return ((seed * 0x41C64E6D) + 0x6073) >>> 0;
 }
 
-// Determine nature from DVs (Gen1/2 behavior)
-function getNatureFromDVs(dvs: number): number {
-  // In Gen1/2, we can derive a "personality" from DVs
-  // Use DV combination to pick a nature that feels consistent
-  const atkDV = (dvs >> 12) & 0x0f;
-  const defDV = (dvs >> 8) & 0x0f;
-  const speDV = (dvs >> 4) & 0x0f;
-  const spaDV = (dvs >> 0) & 0x0f;
+// PCCS ORIGINAL: Truncate EXP to current level before calculating nature
+// "Nature: Assigns based on the modulo of the total EXP, before being truncated"
+function truncateExpToLevel(speciesNatDex: number, level: number): number {
+  // Clamp level to 1-100
+  const clampedLevel = Math.max(1, Math.min(100, level));
   
-  // Create pseudo-personality from DVs
-  const personality = (atkDV * 5 + defDV * 3 + speDV * 7 + spaDV * 11) % 25;
-  return personality;
+  // Get exp group for this species
+  const expGroup = SPECIES_EXP_GROUP[speciesNatDex] ?? SPECIES_EXP_GROUP[0];
+  
+  // Calculate EXP for current level
+  const truncatedExp = calculateExpForLevel(expGroup, clampedLevel);
+  
+  return truncatedExp;
+}
+
+// PCCS ORIGINAL: Nature from EXP points (before truncation)
+// "Assigns based on the modulo of the total EXP, before being truncated"
+function getNatureFromExp(exp: number): number {
+  return exp % 25;
 }
 
 // Gen 2 shiny determination (DVs-based, not PID-based)
@@ -180,8 +188,12 @@ export function convertGen1BoxMonToPk3(mon: Gen1BoxMon): Uint8Array {
   // Check if Pokemon was shiny in Gen 2 (Gen 1 doesn't have shinies, but uses same DV calculation)
   const isShiny = isGen2Shiny(mon.dvs);
   
-  // Generate legal PID based on DVs
-  const nature = getNatureFromDVs(mon.dvs);
+  // PCCS ORIGINAL: Calculate nature from ORIGINAL EXP (before truncation)
+  const nature = getNatureFromExp(mon.exp);
+  
+  // PCCS ORIGINAL: Truncate EXP to current level
+  const truncatedExp = truncateExpToLevel(natDexNum, mon.level);
+  
   const trainerId = mon.otId16 & 0xffff;
   
   // If shiny in Gen 2, generate shiny-compatible PID for Gen 3
@@ -211,7 +223,7 @@ export function convertGen1BoxMonToPk3(mon: Gen1BoxMon): Uint8Array {
     secretId: 0,  // Gen 1/2 don't have Secret ID, use 0
     speciesId: gen3SpeciesIndex,
     heldItemId: 0,
-    exp: mon.exp,
+    exp: truncatedExp,  // Use truncated EXP
     friendship: 70,
     nickname: speciesName(natDexNum),  // Use species name as nickname (NatDex based)
     otName: "",
@@ -261,8 +273,12 @@ export function convertGen2BoxMonToPk3(mon: Gen2BoxMon): Uint8Array {
   // Check if Pokemon is shiny in Gen 2
   const isShiny = isGen2Shiny(mon.dvs);
   
-  // Generate legal PID based on DVs
-  const nature = getNatureFromDVs(mon.dvs);
+  // PCCS ORIGINAL: Calculate nature from ORIGINAL EXP (before truncation)
+  const nature = getNatureFromExp(mon.exp);
+  
+  // PCCS ORIGINAL: Truncate EXP to current level
+  const truncatedExp = truncateExpToLevel(natDexNum, mon.level);
+  
   const trainerId = mon.otId16 & 0xffff;
   
   // If shiny in Gen 2, generate shiny-compatible PID for Gen 3
@@ -297,7 +313,7 @@ export function convertGen2BoxMonToPk3(mon: Gen2BoxMon): Uint8Array {
     secretId: 0,  // Gen 1/2 don't have Secret ID, use 0
     speciesId: gen3SpeciesIndex,
     heldItemId: gen3ItemId,
-    exp: mon.exp,
+    exp: truncatedExp,  // Use truncated EXP
     friendship: 70,
     nickname: speciesName(natDexNum),  // Use species name as nickname
     otName: "",
