@@ -376,6 +376,27 @@ export function buildPk3BoxMon(params: {
   // Gen 3 stores species as internal index (Hoenn Pokemon are shuffled!)
   const speciesIndex = natDexToGen3Index(params.speciesId);
   console.log(`[PK3 Build] Input speciesId=${params.speciesId} → Gen3 Index=${speciesIndex}, nickname="${params.nickname}"`);
+  
+  // Debug logging for Snorlax (#143) to diagnose crash
+  if (params.speciesId === 143) {
+    console.log(`[SNORLAX DEBUG] Full build params:`, {
+      speciesId: params.speciesId,
+      speciesIndex,
+      heldItemId: params.heldItemId,
+      exp: params.exp,
+      friendship: params.friendship,
+      moves: params.moves,
+      movePPs: params.movePPs,
+      ivs: params.ivs,
+      evs: params.evs,
+      metLocation: params.metLocation,
+      metLevel: params.metLevel,
+      ballCaughtWith: params.ballCaughtWith,
+      pid: `0x${params.pid.toString(16)}`,
+      trainerId: params.trainerId
+    });
+  }
+  
   writeU16LE(growth, 0x00, speciesIndex);
   writeU16LE(growth, 0x02, params.heldItemId);
   writeU32LE(growth, 0x04, params.exp);
@@ -469,6 +490,15 @@ export function buildPk3BoxMon(params: {
   
   // Security key at 0x50-0x53
   writeU32LE(raw80, 0x50, 0);
+  
+  // Debug: dump full 80-byte structure for Snorlax
+  if (params.speciesId === 143) {
+    console.log(`[SNORLAX DEBUG] Full 80-byte PK3 hex dump:`);
+    console.log(Array.from(raw80).map(b => b.toString(16).padStart(2, '0')).join(' '));
+    console.log(`[SNORLAX DEBUG] Unshuffled plain blocks (48 bytes):`);
+    console.log(Array.from(plain).map(b => b.toString(16).padStart(2, '0')).join(' '));
+    console.log(`[SNORLAX DEBUG] Checksum: 0x${checksum.toString(16).padStart(4, '0')}`);
+  }
   
   return raw80;
 }

@@ -226,7 +226,7 @@ export function convertGen1BoxMonToPk3(mon: Gen1BoxMon): Uint8Array {
     exp: truncatedExp,  // Use truncated EXP
     friendship: 70,
     nickname,  // Use extracted nickname from Gen 1 save
-    otName: "",
+    otName: "PCCS",  // Gen 3 requires non-empty OT name
     moves: cleanedMoves,
     movePPs: mon.pps,
     ivs,
@@ -318,7 +318,7 @@ export function convertGen2BoxMonToPk3(mon: Gen2BoxMon): Uint8Array {
     exp: truncatedExp,  // Use truncated EXP
     friendship: 70,
     nickname,  // Use extracted nickname from Gen 2 save
-    otName: "",
+    otName: "PCCS",  // Gen 3 requires non-empty OT name
     moves: cleanedMoves,
     movePPs: mon.pps,
     ivs,

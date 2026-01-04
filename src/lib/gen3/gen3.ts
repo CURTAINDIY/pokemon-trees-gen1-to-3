@@ -369,6 +369,10 @@ export function injectGen3BoxMons(save: Uint8Array, mons: Gen3BoxMon[]): Uint8Ar
 
   // Build full PC blob (0xF80*9), preserve everything, patch only mon stream
   const pcBlob = buildPcBlob(newest);
+  
+  // DEBUG: Log PC header bytes
+  console.log(`[PC DEBUG] First 32 bytes of PC blob:`, Array.from(pcBlob.slice(0, 32)).map(b => `0x${b.toString(16).padStart(2, '0')}`).join(' '));
+  console.log(`[PC DEBUG] Bytes at offset 0-3:`, Array.from(pcBlob.slice(0, 4)).map(b => `0x${b.toString(16).padStart(2, '0')}`).join(' '));
 
   const start = PC_MON_DATA_OFFSET;
   const end = start + PC_TOTAL_BYTES;
