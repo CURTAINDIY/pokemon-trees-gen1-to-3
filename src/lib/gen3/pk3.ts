@@ -400,12 +400,23 @@ export function buildPk3BoxMon(params: {
   evCondition[3] = evs.spe;
   evCondition[4] = evs.spa;
   evCondition[5] = evs.spd;
+  // Contest stats (bytes 6-11) - initialize to 0
+  evCondition[6] = 0; // Coolness
+  evCondition[7] = 0; // Beauty
+  evCondition[8] = 0; // Cuteness
+  evCondition[9] = 0; // Smartness
+  evCondition[10] = 0; // Toughness
+  evCondition[11] = 0; // Feel
   
   const misc = new Uint8Array(12);
   misc[0x00] = params.pokerus ?? 0;
   misc[0x01] = params.metLocation ?? 0;
-  misc[0x02] = (params.metLevel ?? 0) & 0x7f;
-  misc[0x03] = ((params.ballCaughtWith ?? 4) & 0x0f) | ((params.otGender ?? 0) << 7);
+  
+  // Origins Info (2 bytes at 0x02-0x03): metLevel (bits 0-6), ball (bits 11-14), OT gender (bit 15)
+  const originsInfo = ((params.metLevel ?? 0) & 0x7F) |             // bits 0-6: met level
+                      (((params.ballCaughtWith ?? 4) & 0x0F) << 11) | // bits 11-14: ball
+                      (((params.otGender ?? 0) & 0x01) << 15);        // bit 15: OT gender
+  writeU16LE(misc, 0x02, originsInfo);
   
   // Pack IVs into 32-bit word at offset 0x04
   const ivWord = (params.ivs.hp & 0x1f) |
