@@ -205,7 +205,7 @@ function parseGen1Box(data: Uint8Array, base: number, label?: string): Gen1BoxMo
     const raw33 = data.slice(monOff, monOff + MON_SIZE);
 
     // Parse boxed mon structure
-    // const species = raw33[0];  // Unused
+    const internalSpecies = raw33[0]; // Species byte inside the Pokemon data
     // const hp = readU16BE(raw33, 1);  // Unused
     const level = raw33[3];
     // const status = raw33[4];  // Unused
@@ -215,6 +215,11 @@ function parseGen1Box(data: Uint8Array, base: number, label?: string): Gen1BoxMo
     const moves = [raw33[8], raw33[9], raw33[10], raw33[11]] as [number, number, number, number];
     const otId16 = readU16BE(raw33, 12);
     const exp = readU24BE(raw33, 14);
+    
+    // Validation: Species in box list must match species in Pokemon data
+    if (speciesIndex !== internalSpecies) {
+      continue; // Corrupted data - species mismatch
+    }
     // const hpEV = readU16BE(raw33, 17);  // Unused
     // const atkEV = readU16BE(raw33, 19);  // Unused
     // const defEV = readU16BE(raw33, 21);  // Unused
@@ -235,9 +240,21 @@ function parseGen1Box(data: Uint8Array, base: number, label?: string): Gen1BoxMo
       continue;
     }
     
-    // EXP must be reasonable (not millions for low level Pokemon)
+    // EXP must be reasonable for the level
+    // Catch absurd EXP values that indicate corruption
+    if (exp > 2000000) {
+      continue; // Max legit Gen 1 exp is ~1.6M (Slow growth to level 100)
+    }
+    
+    // Low level Pokemon shouldn't have extreme EXP
     if (level <= 10 && exp > 10000) {
-      continue; // Likely corrupted
+      continue;
+    }
+    
+    // Legendaries at level 10 or below are suspicious (they're caught at higher levels)
+    // Mewtwo, Articuno, Zapdos, Moltres are caught at level 50+
+    if ((natDex === 144 || natDex === 145 || natDex === 146 || natDex === 150) && level < 40) {
+      continue; // Likely glitched/corrupted legendary
     }
     
     // Skip if all moves are 0
