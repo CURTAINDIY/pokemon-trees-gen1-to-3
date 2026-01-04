@@ -90,19 +90,17 @@ function generateShinyPID(nature: number, trainerId: number): number {
   
   // Force XOR to be < 8 to make shiny
   const targetXor = Math.floor(Math.random() * 8); // 0-7 for shiny
-  pidLow = pidHigh ^ trainerId ^ secretId ^ targetXor;
+  pidLow = (pidHigh ^ trainerId ^ secretId ^ targetXor) & 0xFFFF;
   
   // Reconstruct PID and ensure nature is still correct
-  pid = (pidHigh << 16) | pidLow;
+  pid = ((pidHigh << 16) | pidLow) >>> 0; // Force unsigned 32-bit
   if ((pid % 25) !== nature) {
     // Adjust to match nature
     const currentNature = pid % 25;
-    // const diff = nature - currentNature;  // Unused
-    pid = (pid - currentNature + nature);
-    if (pid < 0) pid += 0x100000000;
+    pid = ((pid - currentNature + nature) >>> 0); // Force unsigned after adjustment
   }
   
-  return pid >>> 0;
+  return pid;
 }
 
 // Unused utility functions - kept for reference
@@ -141,12 +139,10 @@ function generateMethod1PID(nature: number, desiredAbility: number = 0): number 
   
   // Fallback: generate random PID and force nature
   // This is less "legal" but ensures we always succeed
-  let pid = Math.floor(Math.random() * 0xFFFFFFFF);
+  let pid = (Math.floor(Math.random() * 0xFFFFFFFF)) >>> 0; // Ensure unsigned
   const currentNature = pid % 25;
-  // const natureDiff = nature - currentNature;  // Unused
-  pid = (pid - currentNature + nature);
-  if (pid < 0) pid += 0x100000000;
-  return pid >>> 0;
+  pid = (pid - currentNature + nature) >>> 0; // Force unsigned after adjustment
+  return pid;
 }
 
 export function convertGen1BoxMonToPk3(mon: Gen1BoxMon): Uint8Array {
