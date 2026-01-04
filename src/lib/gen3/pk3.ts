@@ -439,13 +439,17 @@ export function buildPk3BoxMon(params: {
                       (((params.otGender ?? 0) & 0x01) << 15);        // bit 15: OT gender
   writeU16LE(misc, 0x02, originsInfo);
   
-  // Pack IVs into 32-bit word at offset 0x04
+  // Pack IVs + egg flag + ability into 32-bit word at offset 0x04
+  // Bits 0-4: HP IV, 5-9: Atk IV, 10-14: Def IV, 15-19: Spe IV, 20-24: SpA IV, 25-29: SpD IV
+  // Bit 30: isEgg flag (0 = not egg, 1 = egg)
+  // Bit 31: ability bit (0 = ability 1, 1 = ability 2)
   const ivWord = (params.ivs.hp & 0x1f) |
                  ((params.ivs.atk & 0x1f) << 5) |
                  ((params.ivs.def & 0x1f) << 10) |
                  ((params.ivs.spe & 0x1f) << 15) |
                  ((params.ivs.spa & 0x1f) << 20) |
                  ((params.ivs.spd & 0x1f) << 25) |
+                 (0 << 30) |                         // CRITICAL: Egg flag must be 0 for non-eggs
                  ((params.abilityBit ?? 0) << 31);
   writeU32LE(misc, 0x04, ivWord);
   
