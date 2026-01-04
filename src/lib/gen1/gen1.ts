@@ -262,7 +262,17 @@ function parseGen1Box(data: Uint8Array, base: number, label?: string): Gen1BoxMo
     // const speEV = readU16BE(raw33, 23);  // Unused
     // const spcEV = readU16BE(raw33, 25);  // Unused
     const dvs = readU16BE(raw33, 27);
-    const pps = [raw33[29], raw33[30], raw33[31], raw33[32]] as [number, number, number, number];
+    
+    // Gen 1 PP bytes contain both PP and PP Ups in one byte:
+    // Bits 0-5: Current PP (0-63)
+    // Bits 6-7: PP Ups (0-3)
+    // We need to extract just the PP for passing to Gen 3 conversion
+    const pps = [
+      raw33[29] & 0x3F,  // Extract bits 0-5 only
+      raw33[30] & 0x3F,
+      raw33[31] & 0x3F,
+      raw33[32] & 0x3F
+    ] as [number, number, number, number];
 
     const natDex = gen1IndexToNatDex[speciesIndex];
     

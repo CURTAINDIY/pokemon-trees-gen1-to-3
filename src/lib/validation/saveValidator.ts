@@ -329,10 +329,13 @@ export class SaveValidator {
    */
   private static async validateGen3Slot(slotBytes: Uint8Array, slotName: string, result: ValidationResult): Promise<void> {
     // Gen 3 save structure has 14 sections, each 4096 bytes with their own checksums
+    // Section footer is at 0xFF4, checksum is u16 at footer+0x02 = 0xFF6
     for (let section = 0; section < 14; section++) {
       const sectionOffset = section * 0x1000;
-      const sectionData = slotBytes.slice(sectionOffset, sectionOffset + 0xFF4); // Data only
-      const expectedChecksum = this.readUint32LE(slotBytes, sectionOffset + 0xFF6);
+      // Checksum is calculated over first 0xF80 bytes (payload only, not padding)
+      const sectionData = slotBytes.slice(sectionOffset, sectionOffset + 0xF80);
+      // Checksum is stored as u16 at 0xFF4+0x02 = 0xFF6
+      const expectedChecksum = this.readUint16LE(slotBytes, sectionOffset + 0xFF6);
       const calculatedChecksum = this.calculateGen3SectionChecksum(sectionData);
 
       const sectionKey = `${slotName}_section_${section}`;
@@ -343,7 +346,7 @@ export class SaveValidator {
       if (calculatedChecksum !== expectedChecksum) {
         result.errors.push({
           type: 'CHECKSUM_MISMATCH',
-          message: `${slotName} section ${section} checksum mismatch`,
+          message: `${slotName} section ${section} checksum mismatch (expected: 0x${expectedChecksum.toString(16)}, got: 0x${calculatedChecksum.toString(16)})`,
           location: sectionKey,
           severity: 'medium',
           fixable: true
@@ -405,12 +408,16 @@ export class SaveValidator {
   }
 
   private static calculateGen3SectionChecksum(sectionData: Uint8Array): number {
+    // Gen 3 checksum: sum u32 words over 0xF80 bytes, fold high+low 16-bit words
     let sum = 0;
-    for (let i = 0; i < sectionData.length; i += 4) {
+    // Ensure we only sum over 0xF80 bytes (payload), not padding
+    const checksumLength = Math.min(sectionData.length, 0xF80);
+    for (let i = 0; i < checksumLength; i += 4) {
       const value = this.readUint32LE(sectionData, i);
       sum = (sum + value) >>> 0; // Unsigned 32-bit addition
     }
-    return (sum + (sum >>> 16)) & 0xFFFF; // Fold to 16-bit
+    // Fold: add high 16 bits to low 16 bits
+    return ((sum & 0xFFFF) + ((sum >>> 16) & 0xFFFF)) & 0xFFFF;
   }
 
   // Utility methods for reading data

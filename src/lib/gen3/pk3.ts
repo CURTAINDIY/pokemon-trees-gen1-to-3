@@ -4,7 +4,7 @@
 // PID @ 0x00, OTID @ 0x04, Nick @ 0x08, OT Name @ 0x14, Checksum @ 0x1C, Encrypted substructs @ 0x20..0x4F
 
 import type { IVs, EVs } from '../types';
-import { gen3IndexToNatDex } from './gen3_index_to_natdex';
+import { gen3IndexToNatDex, natDexToGen3Index } from './gen3_index_to_natdex';
 import { natureFromPid } from '../dex/dex';
 
 // Type extension for debug flag
@@ -218,13 +218,9 @@ export function decodePk3ForDisplay(raw80: Uint8Array): Pk3Decoded {
   // Extract all metadata from the 4 logical blocks
   // Block 0: Growth (species, item, exp, friendship)
   const growth = plain.subarray(0, 12);
-  const heldItemRaw = readU16LE(growth, 0x02);
+  const heldItem = readU16LE(growth, 0x02);
   const experience = readU32LE(growth, 0x04);
   const friendship = growth[0x09];
-  
-  // Gen 3 stores held item index as (actual_index - 1)
-  // So we need to add 1 to get the correct item table index
-  const heldItem = heldItemRaw > 0 ? heldItemRaw + 1 : 0;
 
   // Block 1: Attacks (moves and PPs)
   const attacks = plain.subarray(12, 24);
@@ -376,7 +372,10 @@ export function buildPk3BoxMon(params: {
   
   // Build the 4 substructures in LOGICAL order
   const growth = new Uint8Array(12);
-  writeU16LE(growth, 0x00, params.speciesId);
+  // CRITICAL: Convert National Dex ID to Gen 3 internal index before writing
+  // Gen 3 stores species as internal index (Hoenn Pokemon are shuffled!)
+  const speciesIndex = natDexToGen3Index(params.speciesId);
+  writeU16LE(growth, 0x00, speciesIndex);
   writeU16LE(growth, 0x02, params.heldItemId);
   writeU32LE(growth, 0x04, params.exp);
   growth[0x08] = 0; // PP bonuses

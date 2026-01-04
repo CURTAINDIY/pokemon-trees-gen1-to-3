@@ -226,7 +226,17 @@ function parseGen2Box(data: Uint8Array, base: number, boxNum: number): Gen2BoxMo
     // const speEV = readU16BE(raw32, 17);  // Unused
     // const spcEV = readU16BE(raw32, 19);  // Unused
     const dvs = readU16BE(raw32, 21);
-    const pps = [raw32[23], raw32[24], raw32[25], raw32[26]] as [number, number, number, number];
+    
+    // Gen 2 PP bytes contain both PP and PP Ups in one byte:
+    // Bits 0-5: Current PP (0-63)
+    // Bits 6-7: PP Ups (0-3)
+    // We need to extract just the PP for passing to Gen 3 conversion
+    const pps = [
+      raw32[23] & 0x3F,  // Extract bits 0-5 only
+      raw32[24] & 0x3F,
+      raw32[25] & 0x3F,
+      raw32[26] & 0x3F
+    ] as [number, number, number, number];
     // const friendship = raw32[27];  // Unused
     // const pokerus = raw32[28];  // Unused
     // const caughtData = readU16BE(raw32, 29);  // Unused
