@@ -17,8 +17,9 @@
  */
 
 // Simplified move legality - real PCCS has full learnset tables
-// PERMISSIVE MODE: Allow Gen 1-3 moves by default to preserve movesets
-// This may allow some technically illegal moves, but preserves the player's actual movesets
+// CONSERVATIVE MODE: Strip all moves and replace with species default
+// This ensures 100% legality and prevents crashes from illegal move combinations
+// Trade-off: Original movesets are lost, but Pokemon will work correctly
 export function isMoveLegalForSpecies(speciesId: number, moveId: number): boolean {
   // Special cases
   if (speciesId === 235) { // Smeargle can learn anything via Sketch
@@ -33,13 +34,11 @@ export function isMoveLegalForSpecies(speciesId: number, moveId: number): boolea
     return false;
   }
   
-  // PERMISSIVE: Allow all Gen 1-3 moves to preserve actual movesets from games
-  // Gen 1/2 Pokemon transferred to Gen 3 should keep their moves if possible
-  // The moves came from actual game saves, so they were legal at some point
-  // 
-  // This is more useful than stripping everything to "Pound"
-  // Future: Add full Gen 3 learnset tables for proper validation
-  return true;
+  // CONSERVATIVE: Strip all converted moves to prevent illegal combinations
+  // Without full Gen 3 learnset data, we can't validate if a Pokemon can
+  // actually learn a move in Gen 3. Illegal moves cause crashes.
+  // sanitizeMoveset will replace with species' earliest level-up move
+  return false;
 }
 
 // Get the earliest level-up move for a species (PCCS fallback)
