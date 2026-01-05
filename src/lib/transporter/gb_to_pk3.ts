@@ -244,7 +244,7 @@ export function convertGen1BoxMonToPk3(mon: Gen1BoxMon): Uint8Array {
     movePPs: cleanedPPs,
     ivs,
     evs: { hp: 0, atk: 0, def: 0, spe: 0, spa: 0, spd: 0 },
-    metLocation: 0xFF, // Fateful encounter
+    metLocation: 0, // Unknown/Link Trade (0xFF Fateful Encounter causes crashes)
     metLevel: mon.level,
     ballCaughtWith: 4, // Poke Ball
     otGender: 0,
