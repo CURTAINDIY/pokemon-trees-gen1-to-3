@@ -370,6 +370,9 @@ export function buildPk3BoxMon(params: {
   // Language at 0x12-0x13
   writeU16LE(raw80, 0x12, params.language ?? 0x0201);
   
+  // Markings at 0x1B (circle/square/triangle/heart flags for PC organization)
+  raw80[0x1B] = 0;
+  
   // Build the 4 substructures in LOGICAL order
   const growth = new Uint8Array(12);
   // CRITICAL: Convert National Dex ID to Gen 3 internal index before writing
